@@ -1,0 +1,36 @@
+# Flutter / Dart (Women-Safety-app)
+Women-Safety-app/.dart_tool/
+Women-Safety-app/.flutter-plugins
+Women-Safety-app/.flutter-plugins-dependencies
+Women-Safety-app/.pub-cache/
+Women-Safety-app/.pub/
+Women-Safety-app/**/build/
+Women-Safety-app/**/.dart_tool/
+Women-Safety-app/**/*.iml
+Women-Safety-app/**/doc/api/
+Women-Safety-app/android/**/.cxx/
+Women-Safety-app/android/app/debug/
+Women-Safety-app/android/app/profile/
+Women-Safety-app/android/app/release/
+
+# Local env / secrets (keep out of GitHub when possible)
+.env
+**/.env
+Women-Safety-app/.env
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Docker / local
+*.local
