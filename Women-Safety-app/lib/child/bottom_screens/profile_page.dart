@@ -12,9 +12,8 @@ import 'package:sensors_plus/sensors_plus.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:another_telephony/telephony.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// Switch between demo and real blockchain:
-// import 'package:title_proj/services/blockchain_service.dart'; // Real blockchain
-import 'package:title_proj/services/blockchain_service_demo.dart' as blockchain; // Demo blockchain
+import 'package:title_proj/services/blockchain_service.dart';
+import 'package:title_proj/services/auto_evidence_capture_service.dart';
 import 'package:title_proj/services/firebase_evidence_service.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -51,6 +50,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   late stt.SpeechToText _speech;
   bool _isListening = false;
+  Timer? _sosCancelTimer;
+  bool _sosPending = false;
+  int _cancelCountdown = 0;
+  final AutoEvidenceCaptureService _autoEvidence = AutoEvidenceCaptureService();
 
   @override
   void initState() {
@@ -96,6 +99,8 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void dispose() {
     _accelerometerSubscription?.cancel();
+    _sosCancelTimer?.cancel();
+    _autoEvidence.stopCapture();
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -183,8 +188,8 @@ class _ProfilePageState extends State<ProfilePage> {
         if (_shakeCount >= _minShakeCount) {
           _shakeCount = 0;
           if (!_isInCooldown) {
-            debugPrint('Shake detected! Triggering SOS');
-            _triggerSOS();
+            debugPrint('Shake detected! Starting 5s countdown...');
+            _startSosCancelCountdown(5);
           } else {
             debugPrint('Shake detected but in cooldown period');
           }
@@ -214,6 +219,38 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundColor: Colors.green,
       );
     }
+  }
+
+  /// Cancel countdown before SOS fires. Paper: 3s for voice, 5s for shake.
+  void _startSosCancelCountdown(int seconds) {
+    if (_sosPending) return;
+    _sosPending = true;
+    _cancelCountdown = seconds;
+
+    Fluttertoast.showToast(
+      msg: 'SOS in $_cancelCountdown seconds — shake again to cancel',
+      backgroundColor: Colors.orange,
+      toastLength: Toast.LENGTH_LONG,
+    );
+
+    _sosCancelTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _cancelCountdown--;
+      if (_cancelCountdown <= 0) {
+        timer.cancel();
+        _sosPending = false;
+        _triggerSOS();
+      }
+    });
+  }
+
+  void cancelPendingSOS() {
+    _sosCancelTimer?.cancel();
+    _sosPending = false;
+    _cancelCountdown = 0;
+    Fluttertoast.showToast(
+      msg: 'SOS cancelled',
+      backgroundColor: Colors.grey,
+    );
   }
 
   Future<void> _triggerSOS() async {
@@ -272,10 +309,10 @@ class _ProfilePageState extends State<ProfilePage> {
             'type': 'SOS',
           });
 
-          // Store incident hash on blockchain (automatic, tamper-proof)
+          // Store incident hash on blockchain (real Polygon Amoy)
           try {
-            final blockchainService = blockchain.BlockchainServiceDemo();
-            final incidentHash = blockchain.BlockchainServiceDemo.generateIncidentHash(
+            final blockchainService = BlockchainService();
+            final incidentHash = BlockchainService.generateIncidentHash(
               incidentId: incidentId,
               userId: user.uid,
               timestamp: timestamp,
@@ -284,7 +321,6 @@ class _ProfilePageState extends State<ProfilePage> {
               description: 'SOS Emergency',
             );
 
-            // Store hash in Firestore
             await FirebaseFirestore.instance.collection('incidents').doc(incidentId).update({
               'blockchainHash': incidentHash,
               'blockchainRecorded': false,
@@ -298,7 +334,6 @@ class _ProfilePageState extends State<ProfilePage> {
               latitude: _currentPosition?.latitude,
               longitude: _currentPosition?.longitude,
               description: 'SOS Emergency',
-              privateKey: null, // TODO: Get from user settings if enabled
             ).then((txHash) {
               if (txHash != null) {
                 FirebaseFirestore.instance.collection('incidents').doc(incidentId).update({
@@ -313,6 +348,13 @@ class _ProfilePageState extends State<ProfilePage> {
           } catch (e) {
             print('⚠️ Blockchain service error (non-critical): $e');
           }
+
+          // Start automatic evidence capture (photo + GPS logging)
+          try {
+            _autoEvidence.startCapture(incidentId: incidentId);
+          } catch (e) {
+            print('⚠️ Auto evidence capture error: $e');
+          }
         }
         
         Fluttertoast.showToast(
@@ -320,9 +362,6 @@ class _ProfilePageState extends State<ProfilePage> {
           backgroundColor: Colors.green,
         );
         _lastSOSTime = DateTime.now();
-        
-        // Show evidence capture dialog
-        _showEvidenceCaptureDialog(context, incidentId);
         
         // Start cooldown timer
         Future.delayed(_cooldownPeriod, () {
@@ -462,8 +501,8 @@ class _ProfilePageState extends State<ProfilePage> {
           final codeWord = _codeWordController.text.toLowerCase();
           
           if (spoken.contains(codeWord)) {
-            Fluttertoast.showToast(msg: 'Code word detected! Sending SOS');
-            _triggerSOS();
+            Fluttertoast.showToast(msg: 'Code word detected! SOS in 3 seconds...');
+            _startSosCancelCountdown(3);
           }
         },
         cancelOnError: true,

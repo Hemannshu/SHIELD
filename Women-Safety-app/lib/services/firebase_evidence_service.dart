@@ -1,58 +1,38 @@
-// SIMPLE FREE Evidence Storage using Firebase Storage
-// Uses your existing Firebase setup - 100% FREE
+// Evidence Storage Service using Cloudinary (FREE: 25GB storage)
+// Metadata stored in Firestore
 
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:title_proj/services/cloudinary_service.dart';
 
 // Type alias for FirebaseUser
 typedef FirebaseUser = User;
 
-/// Simple FREE Evidence Storage Service
+/// Evidence Storage Service using Cloudinary + Firestore
 /// 
-/// Uses Firebase Storage (free tier: 5GB storage, 1GB/day downloads)
-/// Completely free - no credit card needed
-/// Already configured in your project!
+/// Cloudinary free tier: 25GB storage, 25GB bandwidth/month
+/// No credit card needed
 class FirebaseEvidenceService {
   static final FirebaseEvidenceService _instance = FirebaseEvidenceService._internal();
   factory FirebaseEvidenceService() => _instance;
   FirebaseEvidenceService._internal();
 
-  FirebaseStorage get _storage {
-    try {
-      // Try to get storage with explicit bucket
-      final app = FirebaseAuth.instance.app;
-      return FirebaseStorage.instanceFor(
-        app: app,
-        bucket: 'sheild-d4bd4.firebasestorage.app',
-      );
-    } catch (e) {
-      print('Warning: Could not initialize with explicit bucket, using default: $e');
-      // Fallback to default instance
-      try {
-        return FirebaseStorage.instance;
-      } catch (e2) {
-        print('Error getting Firebase Storage instance: $e2');
-        rethrow;
-      }
-    }
-  }
-  
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ImagePicker _imagePicker = ImagePicker();
+  final CloudinaryService _cloudinary = CloudinaryService();
 
-  /// Store evidence (photo/video) - COMPLETELY FREE
+  /// Store evidence (photo/video)
   /// 
   /// Steps:
   /// 1. Pick file from camera/gallery
   /// 2. Calculate hash for verification
-  /// 3. Upload to Firebase Storage (free)
+  /// 3. Upload to Cloudinary (free)
   /// 4. Store metadata in Firestore (free)
   Future<EvidenceRecord> storeEvidence({
     required String incidentId,
@@ -66,7 +46,7 @@ class FirebaseEvidenceService {
       // 1. Pick image/video
       final XFile? file = await _imagePicker.pickImage(
         source: source ?? ImageSource.camera,
-        imageQuality: 85, // Compress to save space
+        imageQuality: 85,
       );
 
       if (file == null) throw Exception('No file selected');
@@ -78,125 +58,74 @@ class FirebaseEvidenceService {
       final fileSize = fileBytes.length;
       final timestamp = DateTime.now();
 
-      // 3. Upload to Firebase Storage (FREE)
+      // 3. Upload to Cloudinary (FREE — 25GB)
       String downloadUrl = '';
-      String storagePath = 'evidence/${user.uid}/${timestamp.millisecondsSinceEpoch}_$fileName';
       bool uploadFailed = false;
       
       try {
-        final storage = _storage;
-        final ref = storage.ref().child(storagePath);
-        
-        print('Uploading to Firebase Storage: $storagePath');
-        
-        final uploadTask = ref.putData(
-          Uint8List.fromList(fileBytes),
-          SettableMetadata(
-            contentType: _getContentType(fileName),
-            customMetadata: {
-              'userId': user.uid,
-              'incidentId': incidentId,
-              'fileHash': fileHash,
-              'description': description ?? '',
-            },
-          ),
+        print('☁️ Uploading to Cloudinary...');
+        final cloudResult = await _cloudinary.uploadEvidence(
+          fileBytes: fileBytes,
+          fileName: fileName,
+          incidentId: incidentId,
+          userId: user.uid,
+          resourceType: _getFileType(fileName) == 'video' ? 'video' : 'image',
         );
-
-        // Wait for upload with timeout
-        final snapshot = await uploadTask.timeout(
-          Duration(seconds: 30),
-          onTimeout: () {
-            throw Exception('Upload timeout - please check your internet connection');
-          },
-        );
-        
-        print('Upload completed, getting download URL...');
-        
-        // Get download URL
-        downloadUrl = await snapshot.ref.getDownloadURL();
-        
-        print('Evidence uploaded successfully: $downloadUrl');
-      } catch (e) {
-        // If Firebase Storage fails, store only metadata with hash
-        print('⚠️ Firebase Storage error: $e');
-        print('Error details: ${e.toString()}');
-        uploadFailed = true;
-        
-        // Check if it's a configuration issue
-        if (e.toString().contains('object not found') || 
-            e.toString().contains('bucket') ||
-            e.toString().contains('permission')) {
-          print('⚠️ Firebase Storage may not be enabled or configured properly');
-          print('💡 Enable Storage in Firebase Console: https://console.firebase.google.com/');
-          print('💡 Storage will be enabled automatically, but metadata is still saved');
+        if (cloudResult != null) {
+          downloadUrl = cloudResult.secureUrl;
+          print('☁️ Uploaded to Cloudinary: $downloadUrl');
+        } else {
+          uploadFailed = true;
+          print('⚠️ Cloudinary upload returned null');
         }
-        
-        // Show user-friendly error but continue
-        // The hash is still stored so evidence can be verified later
+      } catch (e) {
+        print('⚠️ Cloudinary upload failed: $e');
+        uploadFailed = true;
       }
-      
-      // 4. Store metadata in Firestore (always store metadata, even if upload failed)
-      return await _storeEvidenceMetadata(
-        user: user,
+
+      // 4. Store base64 fallback if Cloudinary failed and image is small enough
+      String? imageBase64;
+      if (uploadFailed && fileBytes.length < 750000) {
+        imageBase64 = base64Encode(fileBytes);
+      }
+
+      // 5. Store metadata in Firestore
+      final docData = <String, dynamic>{
+        'userId': user.uid,
+        'incidentId': incidentId,
+        'fileName': fileName,
+        'fileHash': fileHash,
+        'fileSize': fileSize,
+        'fileType': _getFileType(fileName),
+        'description': description,
+        'downloadUrl': downloadUrl,
+        'timestamp': FieldValue.serverTimestamp(),
+        'verified': !uploadFailed,
+        'uploadFailed': uploadFailed,
+      };
+      if (imageBase64 != null) {
+        docData['imageBase64'] = imageBase64;
+      }
+
+      final docRef = await _firestore.collection('evidence').add(docData);
+
+      return EvidenceRecord(
+        id: docRef.id,
+        userId: user.uid,
         incidentId: incidentId,
         fileName: fileName,
         fileHash: fileHash,
-        fileSize: fileSize,
         downloadUrl: downloadUrl,
-        storagePath: storagePath,
+        fileSize: fileSize,
+        fileType: _getFileType(fileName),
         description: description,
         timestamp: timestamp,
-        uploadFailed: uploadFailed,
+        imageBase64: imageBase64,
       );
-
     } catch (e) {
       print('Error storing evidence: $e');
       rethrow;
     }
-  }
-
-  /// Helper method to store evidence metadata
-  Future<EvidenceRecord> _storeEvidenceMetadata({
-    required FirebaseUser user,
-    required String incidentId,
-    required String fileName,
-    required String fileHash,
-    required int fileSize,
-    required String downloadUrl,
-    required String storagePath,
-    String? description,
-    required DateTime timestamp,
-    bool uploadFailed = false,
-  }) async {
-    // Store metadata in Firestore (FREE)
-    final docRef = await _firestore.collection('evidence').add({
-      'userId': user.uid,
-      'incidentId': incidentId,
-      'fileName': fileName,
-      'fileHash': fileHash,
-      'fileSize': fileSize,
-      'fileType': _getFileType(fileName),
-      'description': description,
-      'storagePath': storagePath,
-      'downloadUrl': downloadUrl,
-      'timestamp': FieldValue.serverTimestamp(),
-      'verified': !uploadFailed, // Only verified if upload succeeded
-      'uploadFailed': uploadFailed,
-    });
-
-    return EvidenceRecord(
-      id: docRef.id,
-      userId: user.uid,
-      incidentId: incidentId,
-      fileName: fileName,
-      fileHash: fileHash,
-      downloadUrl: downloadUrl,
-      fileSize: fileSize,
-      fileType: _getFileType(fileName),
-      description: description,
-      timestamp: timestamp,
-      storagePath: storagePath,
-    );
   }
 
   /// Get evidence for an incident
@@ -216,12 +145,13 @@ class FirebaseEvidenceService {
           incidentId: data['incidentId'] ?? '',
           fileName: data['fileName'] ?? '',
           fileHash: data['fileHash'] ?? '',
-          downloadUrl: data['downloadUrl'] ?? '',
+          downloadUrl: data['downloadUrl'] ?? data['cloudinaryUrl'] ?? '',
           fileSize: data['fileSize'] ?? 0,
           fileType: data['fileType'] ?? 'image',
           description: data['description'],
           timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          storagePath: data['storagePath'] ?? '',
+          imageBase64: data['imageBase64'],
+          blockchainTxHash: data['blockchainTxHash'],
         );
       }).toList();
     } catch (e) {
@@ -252,13 +182,9 @@ class FirebaseEvidenceService {
   }
 
   /// Delete evidence
-  Future<void> deleteEvidence(String evidenceId, String storagePath) async {
+  Future<void> deleteEvidence(String evidenceId) async {
     try {
-      // Delete from Firestore
       await _firestore.collection('evidence').doc(evidenceId).delete();
-      
-      // Delete from Firebase Storage
-      await _storage.ref().child(storagePath).delete();
     } catch (e) {
       print('Error deleting evidence: $e');
       rethrow;
@@ -277,25 +203,6 @@ class FirebaseEvidenceService {
     }
     return 'file';
   }
-
-  String _getContentType(String fileName) {
-    final ext = fileName.split('.').last.toLowerCase();
-    switch (ext) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'mp4':
-        return 'video/mp4';
-      case 'mov':
-        return 'video/quicktime';
-      default:
-        return 'application/octet-stream';
-    }
-  }
 }
 
 /// Evidence Record Model
@@ -310,7 +217,8 @@ class EvidenceRecord {
   final String fileType;
   final String? description;
   final DateTime timestamp;
-  final String storagePath;
+  final String? imageBase64;
+  final String? blockchainTxHash;
 
   EvidenceRecord({
     required this.id,
@@ -323,7 +231,8 @@ class EvidenceRecord {
     required this.fileType,
     this.description,
     required this.timestamp,
-    required this.storagePath,
+    this.imageBase64,
+    this.blockchainTxHash,
   });
 
   Map<String, dynamic> toMap() {
@@ -338,33 +247,7 @@ class EvidenceRecord {
       'fileType': fileType,
       'description': description,
       'timestamp': timestamp.toIso8601String(),
-      'storagePath': storagePath,
     };
   }
 }
-
-/// Usage Example:
-/// 
-/// ```dart
-/// final evidenceService = FirebaseEvidenceService();
-/// 
-/// // Store evidence
-/// final evidence = await evidenceService.storeEvidence(
-///   incidentId: 'incident_123',
-///   description: 'Emergency photo',
-///   source: ImageSource.camera,
-/// );
-/// 
-/// print('Evidence stored: ${evidence.downloadUrl}');
-/// print('Hash: ${evidence.fileHash}');
-/// 
-/// // Get evidence for incident
-/// final evidenceList = await evidenceService.getIncidentEvidence('incident_123');
-/// 
-/// // Verify evidence
-/// final verified = await evidenceService.verifyEvidence(
-///   evidence.fileHash,
-///   evidence.downloadUrl,
-/// );
-/// ```
 

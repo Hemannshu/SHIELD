@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:title_proj/services/firebase_evidence_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -129,22 +131,7 @@ class _EvidenceViewerPageState extends State<EvidenceViewerPage> {
                           if (evidence.fileType == 'image')
                             ClipRRect(
                               borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                              child: CachedNetworkImage(
-                                imageUrl: evidence.downloadUrl,
-                                width: double.infinity,
-                                height: 200,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  height: 200,
-                                  color: Colors.grey[300],
-                                  child: Center(child: CircularProgressIndicator()),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  height: 200,
-                                  color: Colors.grey[300],
-                                  child: Icon(Icons.error, size: 48, color: Colors.red),
-                                ),
-                              ),
+                              child: _buildImagePreview(evidence),
                             ),
                           // Details
                           Padding(
@@ -204,10 +191,7 @@ class _EvidenceViewerPageState extends State<EvidenceViewerPage> {
                                               appBar: AppBar(title: Text('Evidence')),
                                               body: Center(
                                                 child: evidence.fileType == 'image'
-                                                    ? CachedNetworkImage(
-                                                        imageUrl: evidence.downloadUrl,
-                                                        fit: BoxFit.contain,
-                                                      )
+                                                    ? _buildFullImage(evidence)
                                                     : Text('Video preview not available'),
                                               ),
                                             ),
@@ -228,6 +212,77 @@ class _EvidenceViewerPageState extends State<EvidenceViewerPage> {
                   },
                 ),
     );
+  }
+
+  /// Build image preview — uses base64 from Firestore if downloadUrl is empty
+  Widget _buildImagePreview(EvidenceRecord evidence) {
+    if (evidence.imageBase64 != null && evidence.imageBase64!.isNotEmpty) {
+      final bytes = base64Decode(evidence.imageBase64!);
+      return Image.memory(
+        Uint8List.fromList(bytes),
+        width: double.infinity,
+        height: 200,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          height: 200,
+          color: Colors.grey[300],
+          child: Icon(Icons.broken_image, size: 48, color: Colors.red),
+        ),
+      );
+    } else if (evidence.downloadUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: evidence.downloadUrl,
+        width: double.infinity,
+        height: 200,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          height: 200,
+          color: Colors.grey[300],
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        errorWidget: (context, url, error) => Container(
+          height: 200,
+          color: Colors.grey[300],
+          child: Icon(Icons.error, size: 48, color: Colors.red),
+        ),
+      );
+    } else {
+      return Container(
+        height: 200,
+        color: Colors.grey[300],
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock, size: 48, color: Colors.grey[600]),
+              SizedBox(height: 8),
+              Text('Encrypted evidence stored',
+                  style: TextStyle(color: Colors.grey[600])),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Build full-screen image view
+  Widget _buildFullImage(EvidenceRecord evidence) {
+    if (evidence.imageBase64 != null && evidence.imageBase64!.isNotEmpty) {
+      final bytes = base64Decode(evidence.imageBase64!);
+      return InteractiveViewer(
+        child: Image.memory(
+          Uint8List.fromList(bytes),
+          fit: BoxFit.contain,
+        ),
+      );
+    } else if (evidence.downloadUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: evidence.downloadUrl,
+        fit: BoxFit.contain,
+      );
+    } else {
+      return Text('Image preview not available');
+    }
   }
 
   Widget _buildInfoRow(String label, String value) {

@@ -1,33 +1,29 @@
-// Blockchain Service for Tamper-Proof Incident Reporting
-// Uses Polygon Mumbai Testnet (FREE) - No gas fees!
+// Blockchain Service for Tamper-Proof Incident & Evidence Recording
+// Uses Polygon Amoy Testnet (FREE) via Alchemy RPC
+//
+// Setup (all free):
+// 1. Create free Alchemy account -> get Polygon Amoy RPC URL
+// 2. Get free testnet MATIC from https://faucet.polygon.technology/
+// 3. Deploy IncidentRegistry.sol contract (free on testnet)
+// 4. Put RPC URL, private key, contract address in .env
 
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 import 'package:http/http.dart' as http;
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Blockchain Service for storing incident hashes on Polygon Mumbai Testnet
-/// 
-/// Features:
-/// - FREE (testnet, no real money)
-/// - Tamper-proof incident records
-/// - Automatic hash verification
-/// - Simple and beginner-friendly
 class BlockchainService {
   static final BlockchainService _instance = BlockchainService._internal();
   factory BlockchainService() => _instance;
   BlockchainService._internal();
 
-  // Polygon Mumbai Testnet RPC URL (FREE)
-  static const String _rpcUrl = 'https://rpc-mumbai.maticvigil.com';
-  
-  // Contract address (will be set after deployment)
-  // TODO: Replace with your deployed contract address
-  static const String _contractAddress = '0x0000000000000000000000000000000000000000';
-  
-  // Contract ABI (Application Binary Interface)
+  // Polygon Amoy Testnet chain ID
+  static const int _chainId = 80002;
+  static const String _explorerUrl = 'https://amoy.polygonscan.com/tx/';
+
+  // Updated ABI matching the upgraded IncidentRegistry contract
   static const String _contractABI = '''
   [
     {
@@ -45,8 +41,58 @@ class BlockchainService {
       "type": "function"
     },
     {
+      "inputs": [
+        {"internalType": "bytes32", "name": "_evidenceHash", "type": "bytes32"},
+        {"internalType": "string", "name": "_ipfsCid", "type": "string"}
+      ],
+      "name": "registerEvidence",
+      "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "bytes32", "name": "_evidenceHash", "type": "bytes32"}],
+      "name": "verifyEvidence",
+      "outputs": [
+        {"internalType": "bool", "name": "exists", "type": "bool"},
+        {"internalType": "uint256", "name": "evidenceId", "type": "uint256"},
+        {"internalType": "string", "name": "ipfsCid", "type": "string"},
+        {"internalType": "address", "name": "owner", "type": "address"},
+        {"internalType": "uint256", "name": "timestamp", "type": "uint256"}
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "uint256", "name": "_evidenceId", "type": "uint256"},
+        {"internalType": "address", "name": "_to", "type": "address"}
+      ],
+      "name": "grantAccess",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "uint256", "name": "_evidenceId", "type": "uint256"},
+        {"internalType": "address", "name": "_addr", "type": "address"}
+      ],
+      "name": "hasAccess",
+      "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "getTotalIncidents",
+      "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalEvidence",
       "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
       "stateMutability": "view",
       "type": "function"
@@ -61,45 +107,66 @@ class BlockchainService {
       ],
       "name": "IncidentRecorded",
       "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "uint256", "name": "evidenceId", "type": "uint256"},
+        {"indexed": true, "internalType": "bytes32", "name": "evidenceHash", "type": "bytes32"},
+        {"indexed": false, "internalType": "string", "name": "ipfsCid", "type": "string"},
+        {"indexed": true, "internalType": "address", "name": "owner", "type": "address"},
+        {"indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256"}
+      ],
+      "name": "EvidenceRegistered",
+      "type": "event"
     }
   ]
   ''';
 
   Web3Client? _client;
   DeployedContract? _contract;
+  EthPrivateKey? _credentials;
   bool _initialized = false;
+  bool _configMissing = false;
 
-  /// Initialize blockchain connection
-  Future<void> initialize() async {
-    if (_initialized) return;
+  /// Initialize blockchain connection using .env config
+  Future<bool> initialize() async {
+    if (_initialized) return true;
 
     try {
-      _client = Web3Client(_rpcUrl, http.Client());
-      
-      // Load contract
-      final contractAddress = EthereumAddress.fromHex(_contractAddress);
+      final rpcUrl = dotenv.get('BLOCKCHAIN_RPC_URL', fallback: '');
+      final contractAddress = dotenv.get('BLOCKCHAIN_CONTRACT_ADDRESS', fallback: '');
+      final privateKey = dotenv.get('BLOCKCHAIN_PRIVATE_KEY', fallback: '');
+
+      if (rpcUrl.isEmpty || contractAddress.isEmpty || privateKey.isEmpty) {
+        print('⚠️ Blockchain .env config incomplete — running in hash-only mode');
+        _configMissing = true;
+        return false;
+      }
+
+      _client = Web3Client(rpcUrl, http.Client());
       _contract = DeployedContract(
         ContractAbi.fromJson(_contractABI, 'IncidentRegistry'),
-        contractAddress,
+        EthereumAddress.fromHex(contractAddress),
       );
+      _credentials = EthPrivateKey.fromHex(privateKey);
 
       _initialized = true;
-      print('✅ Blockchain service initialized (Polygon Mumbai Testnet)');
+      print('✅ Blockchain service initialized (Polygon Amoy Testnet)');
+      return true;
     } catch (e) {
       print('⚠️ Blockchain initialization error: $e');
-      print('💡 Make sure contract is deployed and address is set');
       _initialized = false;
+      return false;
     }
   }
 
-  /// Generate hash from incident data
-  /// 
-  /// Creates SHA-256 hash from:
-  /// - Incident ID
-  /// - User ID
-  /// - Timestamp
-  /// - Location (lat, lng)
-  /// - Description
+  /// Whether the service has a live blockchain connection
+  bool get isLive => _initialized && !_configMissing;
+
+  // ===================== HASH GENERATION =====================
+
+  /// Generate SHA-256 hash from incident data
   static String generateIncidentHash({
     required String incidentId,
     required String userId,
@@ -108,7 +175,6 @@ class BlockchainService {
     double? longitude,
     String? description,
   }) {
-    // Combine all data into a single string
     final data = {
       'incidentId': incidentId,
       'userId': userId,
@@ -118,18 +184,28 @@ class BlockchainService {
       'description': description ?? '',
     };
 
-    // Convert to JSON and hash
     final jsonString = jsonEncode(data);
     final bytes = utf8.encode(jsonString);
-    final hash = sha256.convert(bytes);
-
-    return hash.toString();
+    return sha256.convert(bytes).toString();
   }
 
-  /// Store incident hash on blockchain
-  /// 
-  /// Automatically called when incident is created
-  /// Returns transaction hash if successful
+  /// Convert a hex hash string to bytes32 for the contract
+  static Uint8List _hashToBytes32(String hexHash) {
+    final clean = hexHash.startsWith('0x') ? hexHash.substring(2) : hexHash;
+    return Uint8List.fromList(
+      List<int>.generate(32, (i) {
+        if (i < clean.length ~/ 2) {
+          return int.parse(clean.substring(i * 2, i * 2 + 2), radix: 16);
+        }
+        return 0;
+      }),
+    );
+  }
+
+  // ===================== INCIDENT FUNCTIONS =====================
+
+  /// Record incident hash on Polygon blockchain.
+  /// Returns transaction hash if successful, null otherwise.
   Future<String?> recordIncidentOnChain({
     required String incidentId,
     required String userId,
@@ -137,150 +213,152 @@ class BlockchainService {
     double? latitude,
     double? longitude,
     String? description,
-    String? privateKey, // User's wallet private key (testnet only!)
   }) async {
+    final incidentHash = generateIncidentHash(
+      incidentId: incidentId,
+      userId: userId,
+      timestamp: timestamp,
+      latitude: latitude,
+      longitude: longitude,
+      description: description,
+    );
+
+    if (!_initialized) await initialize();
+    if (!isLive) {
+      print('⚠️ Blockchain offline — hash generated: ${incidentHash.substring(0, 16)}...');
+      return null;
+    }
+
     try {
-      if (!_initialized) {
-        await initialize();
-      }
-
-      if (_client == null || _contract == null) {
-        print('⚠️ Blockchain not initialized');
-        return null;
-      }
-
-      // Generate hash
-      final incidentHash = generateIncidentHash(
-        incidentId: incidentId,
-        userId: userId,
-        timestamp: timestamp,
-        latitude: latitude,
-        longitude: longitude,
-        description: description,
-      );
-
-      // Convert hash to bytes32
-      final hashBytes = Uint8List.fromList(
-        List<int>.generate(32, (i) {
-          if (i < incidentHash.length ~/ 2) {
-            return int.parse(
-              incidentHash.substring(i * 2, i * 2 + 2),
-              radix: 16,
-            );
-          }
-          return 0;
-        }),
-      );
-      final hashBytes32 = hashBytes.sublist(0, 32);
-
-      // If no private key provided, use read-only mode (simulation)
-      if (privateKey == null || privateKey.isEmpty) {
-        print('⚠️ No private key provided - using read-only mode');
-        print('💡 Hash generated: ${incidentHash.substring(0, 16)}...');
-        print('💡 To store on-chain, provide wallet private key');
-        return null;
-      }
-
-      // Create credentials from private key
-      final credentials = EthPrivateKey.fromHex(privateKey);
-      final address = await credentials.extractAddress();
-
-      // Get contract function
+      final hashBytes32 = _hashToBytes32(incidentHash);
       final recordFunction = _contract!.function('recordIncident');
-      
-      // Estimate gas (optional, for testnet)
-      final gasPrice = await _client!.getGasPrice();
-      
-      // Send transaction
-      final transaction = Transaction.callContract(
-        contract: _contract!,
-        function: recordFunction,
-        parameters: [hashBytes32],
-        maxGas: 100000,
-        gasPrice: gasPrice,
-      );
 
       final txHash = await _client!.sendTransaction(
-        credentials,
-        transaction,
-        chainId: 80001, // Polygon Mumbai chain ID
+        _credentials!,
+        Transaction.callContract(
+          contract: _contract!,
+          function: recordFunction,
+          parameters: [hashBytes32],
+          maxGas: 150000,
+        ),
+        chainId: _chainId,
       );
 
-      print('✅ Incident hash recorded on blockchain!');
-      print('📝 Transaction hash: $txHash');
-      print('🔗 View on PolygonScan: https://mumbai.polygonscan.com/tx/$txHash');
-
+      print('✅ Incident recorded on-chain: $txHash');
+      print('🔗 $_explorerUrl$txHash');
       return txHash;
     } catch (e) {
-      print('❌ Error recording incident on blockchain: $e');
+      print('❌ Blockchain recordIncident error: $e');
       return null;
     }
   }
 
-  /// Verify if incident hash exists on blockchain
+  /// Verify if an incident hash exists on-chain
   Future<bool> verifyIncidentHash(String incidentHash) async {
+    if (!_initialized) await initialize();
+    if (!isLive) return false;
+
     try {
-      if (!_initialized) {
-        await initialize();
-      }
-
-      if (_client == null || _contract == null) {
-        return false;
-      }
-
-      // Convert hash to bytes32
-      final hashBytes = Uint8List.fromList(
-        List<int>.generate(32, (i) {
-          if (i < incidentHash.length ~/ 2) {
-            return int.parse(
-              incidentHash.substring(i * 2, i * 2 + 2),
-              radix: 16,
-            );
-          }
-          return 0;
-        }),
-      );
-      final hashBytes32 = hashBytes.sublist(0, 32);
-
-      // Call verify function
-      final verifyFunction = _contract!.function('verifyIncident');
+      final hashBytes32 = _hashToBytes32(incidentHash);
       final result = await _client!.call(
         contract: _contract!,
-        function: verifyFunction,
+        function: _contract!.function('verifyIncident'),
         params: [hashBytes32],
       );
-
-      return result[0] as bool;
+      return result.first as bool;
     } catch (e) {
-      print('❌ Error verifying incident hash: $e');
+      print('❌ verifyIncident error: $e');
       return false;
     }
   }
 
-  /// Get total incidents recorded on blockchain
-  Future<int?> getTotalIncidents() async {
+  // ===================== EVIDENCE FUNCTIONS =====================
+
+  /// Register evidence hash + IPFS CID on blockchain.
+  /// Returns transaction hash if successful.
+  Future<String?> registerEvidenceOnChain({
+    required String evidenceHash,
+    required String ipfsCid,
+  }) async {
+    if (!_initialized) await initialize();
+    if (!isLive) {
+      print('⚠️ Blockchain offline — evidence hash: ${evidenceHash.substring(0, 16)}...');
+      return null;
+    }
+
     try {
-      if (!_initialized) {
-        await initialize();
-      }
+      final hashBytes32 = _hashToBytes32(evidenceHash);
+      final registerFunction = _contract!.function('registerEvidence');
 
-      if (_client == null || _contract == null) {
-        return null;
-      }
-
-      final function = _contract!.function('getTotalIncidents');
-      final result = await _client!.call(
-        contract: _contract!,
-        function: function,
-        params: [],
+      final txHash = await _client!.sendTransaction(
+        _credentials!,
+        Transaction.callContract(
+          contract: _contract!,
+          function: registerFunction,
+          parameters: [hashBytes32, ipfsCid],
+          maxGas: 200000,
+        ),
+        chainId: _chainId,
       );
 
-      return (result[0] as BigInt).toInt();
+      print('✅ Evidence registered on-chain: $txHash');
+      print('🔗 $_explorerUrl$txHash');
+      return txHash;
     } catch (e) {
-      print('❌ Error getting total incidents: $e');
+      print('❌ Blockchain registerEvidence error: $e');
       return null;
     }
   }
+
+  /// Verify evidence by its hash — returns metadata from blockchain
+  Future<Map<String, dynamic>?> verifyEvidence(String evidenceHash) async {
+    if (!_initialized) await initialize();
+    if (!isLive) return null;
+
+    try {
+      final hashBytes32 = _hashToBytes32(evidenceHash);
+      final result = await _client!.call(
+        contract: _contract!,
+        function: _contract!.function('verifyEvidence'),
+        params: [hashBytes32],
+      );
+
+      final exists = result[0] as bool;
+      if (!exists) return null;
+
+      return {
+        'exists': true,
+        'evidenceId': (result[1] as BigInt).toInt(),
+        'ipfsCid': result[2] as String,
+        'owner': (result[3] as EthereumAddress).hexEip55,
+        'timestamp': (result[4] as BigInt).toInt(),
+      };
+    } catch (e) {
+      print('❌ verifyEvidence error: $e');
+      return null;
+    }
+  }
+
+  /// Get total incidents recorded on-chain
+  Future<int?> getTotalIncidents() async {
+    if (!_initialized) await initialize();
+    if (!isLive) return null;
+
+    try {
+      final result = await _client!.call(
+        contract: _contract!,
+        function: _contract!.function('getTotalIncidents'),
+        params: [],
+      );
+      return (result.first as BigInt).toInt();
+    } catch (e) {
+      print('❌ getTotalIncidents error: $e');
+      return null;
+    }
+  }
+
+  /// Explorer URL for a transaction
+  String getExplorerUrl(String txHash) => '$_explorerUrl$txHash';
 
   /// Dispose resources
   void dispose() {

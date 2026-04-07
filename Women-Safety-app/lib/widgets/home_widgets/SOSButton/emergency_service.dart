@@ -5,10 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:permission_handler/permission_handler.dart';
-// Switch between demo and real blockchain:
-// import 'package:title_proj/services/blockchain_service.dart'; // Real blockchain
-import 'package:title_proj/services/blockchain_service_demo.dart' as blockchain; // Demo blockchain
+import 'package:title_proj/services/blockchain_service.dart';
 import 'package:title_proj/services/bluetooth_sos_service.dart';
+import 'package:title_proj/services/auto_evidence_capture_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 class EmergencyService {
@@ -19,28 +18,29 @@ class EmergencyService {
   final Telephony _telephony = Telephony.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final BlockchainService _blockchain = BlockchainService();
+  final AutoEvidenceCaptureService _autoEvidence = AutoEvidenceCaptureService();
 
   /// Handle emergency and return incident ID for evidence storage
   Future<String> handleEmergency(Position position, {String? customMessage}) async {
     try {
-      // Create incident ID first
       final incidentId = DateTime.now().millisecondsSinceEpoch.toString();
       final user = _auth.currentUser;
-      
-      // 1. Get emergency contact exactly as done in ProfilePage
+      final timestamp = DateTime.now();
+
+      // 1. Get emergency contact
       final recipient = await _getEmergencyContact();
       if (recipient == null || recipient.isEmpty) {
         throw Exception('No valid emergency contact available');
       }
 
-      // 2. Build message (same format as ProfilePage)
+      // 2. Build message
       final message = await _buildEmergencyMessage(position, customMessage: customMessage);
 
       // 3. Try to send SMS first (if network available)
       bool success = false;
       bool networkAvailable = false;
 
-      // Check network connectivity
       try {
         final connectivityResult = await Connectivity().checkConnectivity();
         networkAvailable = connectivityResult != ConnectivityResult.none;
@@ -49,47 +49,38 @@ class EmergencyService {
       }
 
       if (networkAvailable) {
-        // Try SMS first (normal flow)
         success = await _sendEmergencySMS(recipient, message);
       }
 
       // 4. If SMS failed or no network, try Bluetooth SOS (automatic fallback)
       if (!success || !networkAvailable) {
         print('📡 Network unavailable or SMS failed - Trying Bluetooth SOS...');
-        
         try {
           final bluetoothSOS = BluetoothSOSService();
           final userName = await _getUserName();
           final codeWord = await _getCodeWord();
-          
           final bluetoothSuccess = await bluetoothSOS.sendSOSViaBluetooth(
             position: position,
             userName: userName,
             codeWord: codeWord,
             customMessage: message,
           );
-
           if (bluetoothSuccess) {
-            // Bluetooth SOS sent successfully
             success = true;
             print('✅ SOS sent via Bluetooth (low network area)');
           } else {
-            // Both SMS and Bluetooth failed
             throw Exception('Failed to send via SMS and Bluetooth');
           }
         } catch (e) {
           print('Bluetooth SOS error: $e');
-          // If Bluetooth also fails, throw error
           if (!success) {
             throw Exception('Failed to send emergency alert via SMS and Bluetooth');
           }
         }
       }
 
-      // 4. Store incident in Firestore for evidence linking
+      // 5. Store incident in Firestore
       if (user != null) {
-        final timestamp = DateTime.now();
-        
         await _firestore.collection('incidents').doc(incidentId).set({
           'userId': user.uid,
           'location': GeoPoint(position.latitude, position.longitude),
@@ -99,10 +90,9 @@ class EmergencyService {
           'recipient': recipient,
         });
 
-        // 5. Store incident hash on blockchain (automatic, tamper-proof)
+        // 6. Record incident hash on blockchain (real Polygon Amoy)
         try {
-          final blockchainService = blockchain.BlockchainServiceDemo();
-          final incidentHash = blockchain.BlockchainServiceDemo.generateIncidentHash(
+          final incidentHash = BlockchainService.generateIncidentHash(
             incidentId: incidentId,
             userId: user.uid,
             timestamp: timestamp,
@@ -111,27 +101,22 @@ class EmergencyService {
             description: 'SOS Emergency',
           );
 
-          // Store hash in Firestore (for reference)
+          // Store hash reference in Firestore immediately
           await _firestore.collection('incidents').doc(incidentId).update({
             'blockchainHash': incidentHash,
-            'blockchainRecorded': false, // Will be true after on-chain storage
+            'blockchainRecorded': false,
           });
 
           // Record on blockchain (async, non-blocking)
-          // Note: Requires wallet private key for testnet
-          // For now, hash is generated and stored in Firestore
-          // User can enable blockchain storage later
-          blockchainService.recordIncidentOnChain(
+          _blockchain.recordIncidentOnChain(
             incidentId: incidentId,
             userId: user.uid,
             timestamp: timestamp,
             latitude: position.latitude,
             longitude: position.longitude,
             description: 'SOS Emergency',
-            privateKey: null, // TODO: Get from user settings if enabled
           ).then((txHash) {
             if (txHash != null) {
-              // Update Firestore with blockchain confirmation
               _firestore.collection('incidents').doc(incidentId).update({
                 'blockchainTxHash': txHash,
                 'blockchainRecorded': true,
@@ -144,7 +129,17 @@ class EmergencyService {
           });
         } catch (e) {
           print('⚠️ Blockchain service error (non-critical): $e');
-          // Don't fail emergency if blockchain fails
+        }
+
+        // 7. Start automatic evidence capture (photo + GPS logging)
+        try {
+          _autoEvidence.startCapture(incidentId: incidentId).then((evidenceIds) {
+            print('📸 Auto-captured ${evidenceIds.length} evidence items');
+          }).catchError((e) {
+            print('⚠️ Auto evidence capture error (non-critical): $e');
+          });
+        } catch (e) {
+          print('⚠️ Evidence capture init error: $e');
         }
       }
 
@@ -153,7 +148,7 @@ class EmergencyService {
         backgroundColor: Colors.green,
       );
 
-      return incidentId; // Return incident ID for evidence storage
+      return incidentId;
 
     } catch (e) {
       Fluttertoast.showToast(
@@ -163,6 +158,11 @@ class EmergencyService {
       );
       rethrow;
     }
+  }
+
+  /// Stop any running automatic evidence capture
+  Future<void> stopAutoCapture() async {
+    await _autoEvidence.stopCapture();
   }
 
   // EXACT COPY FROM PROFILEPAGE IMPLEMENTATION
