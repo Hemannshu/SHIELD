@@ -1,114 +1,82 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_direct_caller_plugin/flutter_direct_caller_plugin.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:title_proj/utils/app_theme.dart';
 
 class ArmyEmergency extends StatelessWidget {
   const ArmyEmergency({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final cardWidth = screenSize.width * 0.75; // Matched width
-    final cardHeight = screenSize.height * 0.18; // Matched height
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: GestureDetector(
         onTap: () => FlutterDirectCallerPlugin.callNumber("100"),
-        child: Card(
-          elevation: 5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            width: cardWidth,
-            height: cardHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.fromRGBO(76, 175, 80, 1),  // Army green
-                  Color.fromRGBO(56, 142, 60, 1),  // Darker green
-                ],
-              ),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.65,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF66BB6A), Color(0xFF388E3C)],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Stack(
-                children: [
-                  // Icon and Text - Column layout
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: cardHeight * 0.3,
-                          height: cardHeight * 0.3,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Image.asset(
-                              'assets/police-image.png', // Use your army icon asset
-                              width: cardHeight * 0.25,
-                              height: cardHeight * 0.25,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Army Emergency',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: cardHeight * 0.16, // Matched size
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Call 100 for emergencies',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: cardHeight * 0.10, // Matched size
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Number Badge
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: cardWidth * 0.18,
-                      height: cardHeight * 0.25,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF66BB6A).withOpacity(0.3),
+                blurRadius: 16, offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Center(
-                        child: Text(
-                          '100',
-                          style: TextStyle(
-                            color: Colors.green[800],
-                            fontWeight: FontWeight.bold,
-                            fontSize: cardHeight * 0.2, // Matched size
-                          ),
+                      child: const Icon(Icons.shield_rounded, color: Colors.white, size: 22),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text('100',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w800, fontSize: 16,
+                          color: const Color(0xFF388E3C),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Police Emergency',
+                      style: GoogleFonts.inter(
+                        color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text('Call 100 for Police',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withOpacity(0.8), fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

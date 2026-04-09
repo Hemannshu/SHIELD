@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:another_telephony/telephony.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:title_proj/services/blockchain_service.dart';
 import 'package:title_proj/services/bluetooth_sos_service.dart';
 import 'package:title_proj/services/auto_evidence_capture_service.dart';
+import 'package:title_proj/services/native_sms_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 class EmergencyService {
@@ -15,7 +14,6 @@ class EmergencyService {
   factory EmergencyService() => _instance;
   EmergencyService._internal();
 
-  final Telephony _telephony = Telephony.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final BlockchainService _blockchain = BlockchainService();
@@ -165,16 +163,10 @@ class EmergencyService {
     await _autoEvidence.stopCapture();
   }
 
-  // EXACT COPY FROM PROFILEPAGE IMPLEMENTATION
+  // Uses native Android SmsManager via platform channel (no default SMS app required)
   Future<bool> _sendEmergencySMS(String recipient, String message) async {
     try {
-      final hasPermission = await _telephony.requestSmsPermissions;
-      if (hasPermission != true) {
-        throw Exception('SMS permission not granted');
-      }
-
-      await _telephony.sendSms(to: recipient, message: message);
-      return true;
+      return await NativeSmsService.sendSms(phone: recipient, message: message);
     } catch (e) {
       debugPrint('SMS sending error: $e');
       return false;

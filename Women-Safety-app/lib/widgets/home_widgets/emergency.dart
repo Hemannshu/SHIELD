@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:title_proj/utils/app_theme.dart';
 import 'package:title_proj/widgets/home_widgets/SOSButton/SOSButton.dart';
 import 'package:title_proj/widgets/home_widgets/emergencies/FireBrigadeEmergency.dart';
 import 'package:title_proj/widgets/home_widgets/emergencies/AmbulanceEmergency.dart';
@@ -17,9 +19,7 @@ class Emergency extends StatelessWidget {
       height: 200,
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-          ),
+          const Padding(padding: EdgeInsets.all(8.0)),
           Expanded(
             child: ListView(
               physics: const BouncingScrollPhysics(),

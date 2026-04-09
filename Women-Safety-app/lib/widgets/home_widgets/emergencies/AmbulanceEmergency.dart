@@ -1,119 +1,82 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_direct_caller_plugin/flutter_direct_caller_plugin.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:title_proj/utils/app_theme.dart';
 
 class AmbulanceEmergency extends StatelessWidget {
   const AmbulanceEmergency({Key? key}) : super(key: key);
 
-  // Colors as constants
-  static const _tealColor = Color.fromRGBO(0, 150, 136, 1);
-  static const _darkTealColor = Color.fromRGBO(0, 121, 107, 1);
-  static const _badgeTextColor = Color.fromRGBO(0, 77, 64, 1);
-
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final cardWidth = screenSize.width * 0.75; // Matched width
-    final cardHeight = screenSize.height * 0.18; // Matched height
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: GestureDetector(
         onTap: () => FlutterDirectCallerPlugin.callNumber("108"),
-        child: Card(
-          elevation: 5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            width: cardWidth,
-            height: cardHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  _tealColor,
-                  _darkTealColor,
-                ],
-              ),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.65,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppTheme.accentTeal, Color(0xFF00897B)],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Stack(
-                children: [
-                  // Icon and Text - Column layout
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: cardHeight * 0.3,
-                          height: cardHeight * 0.3,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Image.asset(
-                              'assets/ambulance.png',
-                              width: cardHeight * 0.25,
-                              height: cardHeight * 0.25,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Medical Emergency',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: cardHeight * 0.16, // Matched size
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Call 108 for Ambulance',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: cardHeight * 0.10, // Matched size
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Number Badge
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: cardWidth * 0.18,
-                      height: cardHeight * 0.25,
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.accentTeal.withOpacity(0.3),
+                blurRadius: 16, offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Center(
-                        child: Text(
-                          '108',
-                          style: TextStyle(
-                            color: _badgeTextColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: cardHeight * 0.2, // Matched size
-                          ),
+                      child: const Icon(Icons.local_hospital_rounded, color: Colors.white, size: 22),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text('108',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w800, fontSize: 16,
+                          color: AppTheme.accentTeal,
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Medical Emergency',
+                      style: GoogleFonts.inter(
+                        color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text('Call 108 for Ambulance',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withOpacity(0.8), fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

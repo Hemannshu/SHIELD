@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:title_proj/utils/app_theme.dart';
 
 class SOSButton extends StatefulWidget {
   final Future<void> Function() onPressed;
@@ -14,12 +16,8 @@ class _SOSButtonState extends State<SOSButton> {
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final cardWidth = screenSize.width * 0.75; // Matched width
-    final cardHeight = screenSize.height * 0.18; // Matched height
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: GestureDetector(
         onTap: _isSending
             ? null
@@ -28,94 +26,64 @@ class _SOSButtonState extends State<SOSButton> {
                 try {
                   await widget.onPressed();
                 } finally {
-                  setState(() => _isSending = false);
+                  if (mounted) setState(() => _isSending = false);
                 }
               },
-        child: Card(
-          elevation: 5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            width: cardWidth,
-            height: cardHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.fromRGBO(255, 0, 0, 1), // Bright red
-                  Color.fromRGBO(200, 0, 0, 1), // Darker red
-                ],
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.65,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: AppTheme.sosGradient,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.4),
+                blurRadius: 20, offset: const Offset(0, 6),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Stack(
-                children: [
-                  // Icon and Text - Column layout
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Siren Icon
-                        Container(
-                          width: cardHeight * 0.3,
-                          height: cardHeight * 0.3,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              '🚨',
-                              style: TextStyle(
-                                fontSize: cardHeight * 0.2,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        // Text Content
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'SOS EMERGENCY',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: cardHeight * 0.16,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Press for immediate help',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: cardHeight * 0.10,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.sos_rounded, color: Colors.white, size: 22),
                     ),
-                  ),
-                  // Loading Indicator
-                  if (_isSending)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 3,
+                    const Spacer(),
+                    if (_isSending)
+                      const SizedBox(
+                        width: 24, height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5),
+                      ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('SOS EMERGENCY',
+                      style: GoogleFonts.inter(
+                        color: Colors.white, fontWeight: FontWeight.w800, fontSize: 17,
+                        letterSpacing: 0.5,
                       ),
                     ),
-                ],
-              ),
+                    const SizedBox(height: 2),
+                    Text('Press for immediate help',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withOpacity(0.8), fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

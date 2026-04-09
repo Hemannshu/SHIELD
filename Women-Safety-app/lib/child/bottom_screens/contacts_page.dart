@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:title_proj/db/db_services.dart';
 import 'package:title_proj/model/contactsm.dart';
+import 'package:title_proj/utils/app_theme.dart';
 
 class ContactsPage extends StatefulWidget {
   @override
@@ -78,197 +81,231 @@ class _ContactsPageState extends State<ContactsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text('Trusted Contacts',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20)),
-        centerTitle: true,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.deepPurpleAccent, Colors.purple],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SafeArea(
+        bottom: false,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Material(
-              elevation: 2,
-              borderRadius: BorderRadius.circular(12),
-              child: ListTile(
-                contentPadding: EdgeInsets.all(16),
-                leading: Icon(Icons.shield, color: Colors.deepPurple),
-                title: Text('Trusted Contacts',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                subtitle: Text(
-                    'These contacts will receive your emergency location.'),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Trusted\nContacts',
+                    style: GoogleFonts.inter(
+                      fontSize: 32, fontWeight: FontWeight.w800,
+                      letterSpacing: -1, height: 1.1,
+                      color: isDark ? Colors.white : AppTheme.neutralGrey900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Your emergency safety network',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      color: isDark ? Colors.white54 : AppTheme.neutralGrey400,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: pickContact,
-              icon: Icon(Icons.person_add_alt_1, size: 20),
-              label: Text('ADD TRUSTED CONTACT',
-                  style: TextStyle(fontSize: 14, letterSpacing: 1)),
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: const Color.fromARGB(255, 183, 58, 141),
-                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+            ).animate().fadeIn(duration: 500.ms),
+
+            const SizedBox(height: 16),
+
+            // Info card
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [AppTheme.darkCard, AppTheme.darkElevated]
+                        : [const Color(0xFFFFF0F3), const Color(0xFFFCE4EC)],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppTheme.primaryPink.withOpacity(isDark ? 0.15 : 0.1),
+                  ),
                 ),
-                elevation: 5,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryPink.withOpacity(isDark ? 0.15 : 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.shield_rounded, color: AppTheme.primaryPink, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        'These contacts will receive your location during emergencies',
+                        style: GoogleFonts.inter(
+                          fontSize: 13, height: 1.4,
+                          color: isDark ? Colors.white70 : AppTheme.neutralGrey600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            SizedBox(height: 20),
-            Expanded(
-              child: count == 0
-                  ? Column(
+            ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
+
+            const SizedBox(height: 16),
+
+            // Add button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SizedBox(
+                width: double.infinity, height: 50,
+                child: InkWell(
+                  onTap: pickContact,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    decoration: AppTheme.gradientButton(radius: 14),
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.group_off,
-                            size: 80, color: Colors.grey[300]),
-                        SizedBox(height: 16),
-                        Text('No trusted contacts',
-                            style: TextStyle(
-                                fontSize: 18, color: Colors.grey[700])),
-                        SizedBox(height: 6),
-                        Text('Add some contacts to get started',
-                            style: TextStyle(color: Colors.grey[500])),
-                      ], 
+                        const Icon(Icons.person_add_rounded, color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Text('Add Trusted Contact',
+                          style: GoogleFonts.inter(
+                            fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ).animate().fadeIn(delay: 300.ms, duration: 500.ms),
+
+            const SizedBox(height: 16),
+
+            // Contact list
+            Expanded(
+              child: count == 0
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.05) : AppTheme.neutralGrey100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.people_outline_rounded, size: 48,
+                              color: isDark ? Colors.white24 : AppTheme.neutralGrey400),
+                          ),
+                          const SizedBox(height: 16),
+                          Text('No contacts yet',
+                            style: GoogleFonts.inter(
+                              fontSize: 18, fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white54 : AppTheme.neutralGrey600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text('Add your trusted contacts above',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: isDark ? Colors.white38 : AppTheme.neutralGrey400,
+                            ),
+                          ),
+                        ],
+                      ),
                     )
                   : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
                       itemCount: count,
-                      separatorBuilder: (_, __) => SizedBox(height: 12),
-                      itemBuilder: (BuildContext context, int index) {
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
                         return Container(
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
-                              )
+                            color: isDark ? AppTheme.darkCard : Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isDark ? Colors.white.withOpacity(0.06) : AppTheme.neutralGrey200,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44, height: 44,
+                                decoration: BoxDecoration(
+                                  gradient: AppTheme.primaryGradient,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    contactList![index].name.isNotEmpty
+                                        ? contactList![index].name[0].toUpperCase()
+                                        : '?',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(contactList![index].name,
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w600, fontSize: 15,
+                                        color: isDark ? Colors.white : AppTheme.neutralGrey900,
+                                      ),
+                                    ),
+                                    Text(contactList![index].number,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white38 : AppTheme.neutralGrey400,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.call_rounded, color: Colors.green[400], size: 22),
+                                onPressed: () async {
+                                  await FlutterContacts.openExternalEdit(
+                                      contactList![index].id.toString());
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete_outline_rounded,
+                                  color: isDark ? Colors.red[300] : Colors.red[400], size: 22),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      title: Text('Remove Contact'),
+                                      content: Text('Remove ${contactList![index].name}?'),
+                                      actions: [
+                                        TextButton(child: Text('Cancel'), onPressed: () => Navigator.pop(context)),
+                                        TextButton(
+                                          child: Text('Remove', style: TextStyle(color: Colors.red)),
+                                          onPressed: () { deleteContact(contactList![index]); Navigator.pop(context); },
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                             ],
                           ),
-                          child: ListTile(
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.purple[100],
-                              child: Icon(Icons.person,
-                                  color: Colors.deepPurple),
-                            ),
-                            title: Text(contactList![index].name,
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600, fontSize: 16)),
-                            subtitle: Text(contactList![index].number),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.call,
-                                      color: Colors.green.shade600),
-                                  onPressed: () async {
-                                    await FlutterContacts.openExternalEdit(
-                                        contactList![index].id.toString());
-                                  },
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.delete,
-                                      color: Colors.red.shade600),
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (_) => AlertDialog(
-                                        title: Text('Remove Contact'),
-                                        content: Text(
-                                            'Are you sure you want to remove ${contactList![index].name}?'),
-                                        actions: [
-                                          TextButton(
-                                            child: Text('Cancel'),
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(),
-                                          ),
-                                          TextButton(
-                                            child: Text('Remove',
-                                                style: TextStyle(
-                                                    color: Colors.red)),
-                                            onPressed: () {
-                                              deleteContact(contactList![index]);
-                                              Navigator.of(context).pop();
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
+                        ).animate().fadeIn(delay: (100 * index).ms, duration: 400.ms);
                       },
                     ),
-            ),
-            SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Add your "get location" function here
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                    ),
-                    child: Text(
-                      'GET LOCATION',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          letterSpacing: 1),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Add your "send alert" function here
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                    ),
-                    child: Text(
-                      'SEND ALERT',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          letterSpacing: 1),
-                    ),
-                  ),
-                ),
-              ],
             ),
           ],
         ),

@@ -642,7 +642,7 @@ Practice with a partner to build confidence
                   ),
                   SizedBox(height: 10),
                   Container(
-                    height: 220,
+                    height: 240,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       itemCount: featuredTraining.length,
@@ -673,7 +673,8 @@ Practice with a partner to build confidence
                                       fit: BoxFit.cover,
                                     ),
                                   ),
-                                  Padding(
+                                  Expanded(
+                                    child: Padding(
                                     padding: EdgeInsets.all(10),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -682,16 +683,16 @@ Practice with a partner to build confidence
                                           training["title"],
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 16,
+                                            fontSize: 14,
                                           ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
-                                        SizedBox(height: 5),
+                                        SizedBox(height: 4),
                                         Text(
                                           training["description"],
                                           style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             color: Colors.grey[700],
                                           ),
                                           maxLines: 2,
@@ -699,6 +700,7 @@ Practice with a partner to build confidence
                                         ),
                                       ],
                                     ),
+                                  ),
                                   ),
                                 ],
                               ),

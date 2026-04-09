@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:title_proj/components/PrimaryButton.dart';
 import 'package:title_proj/components/custom_textfield.dart';
+import 'package:title_proj/utils/app_theme.dart';
 
 class ReviewPage extends StatefulWidget {
   @override
@@ -18,242 +21,220 @@ class _ReviewPageState extends State<ReviewPage> {
   double? ratings;
   String searchQuery = '';
 
-  // Colors
-  final Color primaryColor = Color(0xFFEC407A);
-  final Color backgroundColor = Color(0xFFF5F5F5);
-  final Color cardColor = Colors.white;
-  final Color textColor = Color(0xFF333333);
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        title: Text('Location Reviews',
-        style: TextStyle(
-      color: Colors.white, // Added black text color
-    ),
-        ),
-        backgroundColor: primaryColor,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: isSaving
-          ? Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
+      body: SafeArea(
+        bottom: false,
+        child: isSaving
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Text('Reviews',
+                      style: GoogleFonts.inter(
+                        fontSize: 32, fontWeight: FontWeight.w800,
+                        letterSpacing: -1,
+                        color: isDark ? Colors.white : AppTheme.neutralGrey900,
+                      ),
+                    ),
+                  ).animate().fadeIn(duration: 500.ms),
+
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text('Rate and review locations for safety',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        color: isDark ? Colors.white54 : AppTheme.neutralGrey400,
+                      ),
+                    ),
+                  ),
+
+                  // Search
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.darkCard : AppTheme.neutralGrey100,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark ? Colors.white.withOpacity(0.06) : AppTheme.neutralGrey200,
                         ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: searchController,
-                      onChanged: updateSearchQuery,
-                      decoration: InputDecoration(
-                        hintText: 'Search locations...',
-                        prefixIcon: Icon(Icons.search, color: primaryColor),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 20),
+                      ),
+                      child: TextField(
+                        controller: searchController,
+                        onChanged: updateSearchQuery,
+                        style: TextStyle(color: isDark ? Colors.white : AppTheme.neutralGrey900),
+                        decoration: InputDecoration(
+                          hintText: 'Search locations...',
+                          prefixIcon: Icon(Icons.search_rounded, color: AppTheme.primaryPink, size: 22),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                // Title
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      "Recent Reviews",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                  ),
-                ),
-                // Reviews List
-                Expanded(
-                  child: StreamBuilder(
-                    stream: FirebaseFirestore.instance
-                        .collection('reviews')
-                        .orderBy('timestamp', descending: true)
-                        .snapshots(),
-                    builder: (BuildContext context,
-                        AsyncSnapshot<QuerySnapshot> snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Center(child: CircularProgressIndicator());
-                      }
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return Center(
-                          child: Text(
-                            "No reviews yet",
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        );
-                      }
+                  ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
 
-                      var filteredDocs = snapshot.data!.docs.where((doc) {
-                        var data = doc.data() as Map<String, dynamic>?;
-                        var location =
-                            data?["location"]?.toString().toLowerCase() ??
-                                "unknown";
-                        return location.contains(searchQuery);
-                      }).toList();
-
-                      if (filteredDocs.isEmpty) {
-                        return Center(
-                          child: Text(
-                            "No matching reviews found",
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        );
-                      }
-
-                      return ListView.separated(
-                        padding: EdgeInsets.all(16),
-                        separatorBuilder: (context, index) =>
-                            SizedBox(height: 12),
-                        itemCount: filteredDocs.length,
-                        itemBuilder: (BuildContext context, int index) {
-                          final doc = filteredDocs[index];
-                          final data = doc.data() as Map<String, dynamic>? ?? {};
-
-                          String location = data["location"] ?? "Unknown";
-                          String views = data["views"] ?? "No comments";
-                          double rating =
-                              (data["ratings"] as num?)?.toDouble() ?? 1.0;
-                          Timestamp? timestamp =
-                              data["timestamp"] as Timestamp?;
-                          DateTime? date = timestamp?.toDate();
-
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: cardColor,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: Offset(0, 4),
+                  const SizedBox(height: 16),
+                  // Reviews List
+                  Expanded(
+                    child: StreamBuilder(
+                      stream: FirebaseFirestore.instance
+                          .collection('reviews')
+                          .orderBy('timestamp', descending: true)
+                          .snapshots(),
+                      builder: (BuildContext context,
+                          AsyncSnapshot<QuerySnapshot> snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.rate_review_outlined, size: 48,
+                                  color: isDark ? Colors.white24 : AppTheme.neutralGrey400),
+                                const SizedBox(height: 12),
+                                Text('No reviews yet',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    color: isDark ? Colors.white54 : AppTheme.neutralGrey400,
+                                  ),
                                 ),
                               ],
                             ),
-                            child: Padding(
-                              padding: EdgeInsets.all(16),
+                          );
+                        }
+
+                        var filteredDocs = snapshot.data!.docs.where((doc) {
+                          var data = doc.data() as Map<String, dynamic>?;
+                          var location =
+                              data?["location"]?.toString().toLowerCase() ?? "unknown";
+                          return location.contains(searchQuery);
+                        }).toList();
+
+                        if (filteredDocs.isEmpty) {
+                          return Center(
+                            child: Text('No matching reviews',
+                              style: GoogleFonts.inter(color: isDark ? Colors.white38 : AppTheme.neutralGrey400),
+                            ),
+                          );
+                        }
+
+                        return ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemCount: filteredDocs.length,
+                          itemBuilder: (context, index) {
+                            final doc = filteredDocs[index];
+                            final data = doc.data() as Map<String, dynamic>? ?? {};
+                            String location = data["location"] ?? "Unknown";
+                            String views = data["views"] ?? "No comments";
+                            double rating = (data["ratings"] as num?)?.toDouble() ?? 1.0;
+                            Timestamp? timestamp = data["timestamp"] as Timestamp?;
+                            DateTime? date = timestamp?.toDate();
+
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppTheme.darkCard : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isDark ? Colors.white.withOpacity(0.06) : AppTheme.neutralGrey200,
+                                ),
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Expanded(
-                                        child: Text(
-                                          location,
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: textColor,
+                                        child: Text(location,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 16, fontWeight: FontWeight.w600,
+                                            color: isDark ? Colors.white : AppTheme.neutralGrey900,
                                           ),
                                         ),
                                       ),
                                       if (date != null)
-                                        Text(
-                                          "${date.day}/${date.month}/${date.year}",
-                                          style: TextStyle(
-                                            color: Colors.grey,
+                                        Text("${date.day}/${date.month}/${date.year}",
+                                          style: GoogleFonts.inter(
                                             fontSize: 12,
+                                            color: isDark ? Colors.white38 : AppTheme.neutralGrey400,
                                           ),
                                         ),
                                     ],
                                   ),
-                                  SizedBox(height: 8),
+                                  const SizedBox(height: 8),
                                   RatingBarIndicator(
                                     rating: rating,
-                                    itemBuilder: (context, index) => Icon(
-                                      Icons.star,
-                                      color: primaryColor,
-                                    ),
-                                    itemCount: 5,
-                                    itemSize: 20,
-                                    unratedColor: Colors.grey.shade300,
+                                    itemBuilder: (context, _) => const Icon(Icons.star_rounded, color: Color(0xFFFFB300)),
+                                    itemCount: 5, itemSize: 18,
+                                    unratedColor: isDark ? Colors.white12 : AppTheme.neutralGrey200,
                                   ),
-                                  SizedBox(height: 12),
-                                  Text(
-                                    views,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: textColor.withOpacity(0.8),
+                                  const SizedBox(height: 10),
+                                  Text(views,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14, height: 1.4,
+                                      color: isDark ? Colors.white70 : AppTheme.neutralGrey600,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                            ).animate().fadeIn(delay: (80 * index).ms, duration: 400.ms);
+                          },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: primaryColor,
-        onPressed: () => showReviewDialog(context),
-        child: Icon(Icons.add, color: Colors.white),
-        elevation: 4,
+                ],
+              ),
+      ),
+      floatingActionButton: Container(
+        decoration: AppTheme.gradientButton(radius: 16),
+        child: FloatingActionButton(
+          onPressed: () => showReviewDialog(context),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: const Icon(Icons.add_rounded, color: Colors.white),
+        ),
       ),
     );
   }
 
   void showReviewDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          "Add Your Review",
-          style: TextStyle(color: primaryColor),
+        backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text("Add Review",
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : AppTheme.neutralGrey900),
         ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CustomTextField(
-                hintText: 'Location name',
-                controller: locationC, prefixText: '',
-              ),
-              SizedBox(height: 16),
-              CustomTextField(
-                controller: viewsC,
-                hintText: 'Your review comments',
-                maxLines: 3, prefixText: '',
-              ),
-              SizedBox(height: 16),
+              CustomTextField(hintText: 'Location name', controller: locationC, prefixText: ''),
+              const SizedBox(height: 14),
+              CustomTextField(controller: viewsC, hintText: 'Your review', maxLines: 3, prefixText: ''),
+              const SizedBox(height: 14),
               RatingBar.builder(
-                initialRating: 1,
-                minRating: 1,
-                direction: Axis.horizontal,
-                itemCount: 5,
-                unratedColor: Colors.grey.shade300,
-                itemPadding: EdgeInsets.symmetric(horizontal: 4),
-                itemBuilder: (context, _) =>
-                    Icon(Icons.star, color: primaryColor),
+                initialRating: 1, minRating: 1,
+                direction: Axis.horizontal, itemCount: 5,
+                unratedColor: isDark ? Colors.white12 : AppTheme.neutralGrey200,
+                itemPadding: const EdgeInsets.symmetric(horizontal: 4),
+                itemBuilder: (_, __) => const Icon(Icons.star_rounded, color: Color(0xFFFFB300)),
                 onRatingUpdate: (rating) => setState(() => ratings = rating),
               ),
             ],
@@ -261,15 +242,15 @@ class _ReviewPageState extends State<ReviewPage> {
         ),
         actions: [
           TextButton(
-            child: Text("CANCEL", style: TextStyle(color: Colors.grey)),
+            child: Text("Cancel", style: GoogleFonts.inter(color: isDark ? Colors.white54 : AppTheme.neutralGrey400)),
             onPressed: () => Navigator.pop(context),
           ),
-          PrimaryButton(
-            title: "SUBMIT",
-            onPressed: () {
-              saveReview();
-              Navigator.pop(context);
-            },
+          Container(
+            decoration: AppTheme.gradientButton(radius: 10),
+            child: TextButton(
+              onPressed: () { saveReview(); Navigator.pop(context); },
+              child: Text("Submit", style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600)),
+            ),
           ),
         ],
       ),

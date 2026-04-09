@@ -91,6 +91,8 @@ dependencies:
   translator: ^1.0.3+1
   encrypt: ^5.0.3                  # AES-256 client-side encryption
   crypto: ^3.0.6                   # SHA-256 hashing
+  flutter_animate: ^4.5.0          # Modern animations
+  shimmer: ^3.0.0                  # Loading shimmer effects
 
 dev_dependencies:
   flutter_test:

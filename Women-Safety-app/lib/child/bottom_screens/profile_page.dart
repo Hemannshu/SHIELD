@@ -6,15 +6,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:another_telephony/telephony.dart';
+import 'package:title_proj/services/native_sms_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:title_proj/services/blockchain_service.dart';
 import 'package:title_proj/services/auto_evidence_capture_service.dart';
 import 'package:title_proj/services/firebase_evidence_service.dart';
+import 'package:title_proj/utils/app_theme.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -36,7 +38,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _shakeToAlertEnabled = false;
 
   Position? _currentPosition;
-  final Telephony telephony = Telephony.instance;
   StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
   double _shakeThreshold = 15.0;
   int _minShakeCount = 3;
@@ -394,13 +395,7 @@ class _ProfilePageState extends State<ProfilePage> {
           'Location: $locationInfo\n'
           'Codeword: ${_codeWordController.text.isNotEmpty ? _codeWordController.text : "Not set"}';
 
-      final hasPermission = await telephony.requestSmsPermissions;
-      if (hasPermission != true) {
-        throw Exception('SMS permission not granted');
-      }
-
-      await telephony.sendSms(to: recipient, message: message);
-      return true;
+      return await NativeSmsService.sendSms(phone: recipient, message: message);
     } catch (e) {
       debugPrint('SMS sending error: $e');
       return false;
@@ -515,250 +510,313 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile Settings'),
+        title: Text('Profile',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: Colors.white)),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.transparent,
         flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.pinkAccent, Colors.pink],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
+          decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.save, color: Colors.white),
+            icon: const Icon(Icons.check_rounded, color: Colors.white),
             onPressed: _updateProfile,
           ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          
-        ),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(
-                          width: 140,
-                          height: 140,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [Colors.purple, Colors.pink],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Avatar
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 120, height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: AppTheme.primaryGradient,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryPink.withOpacity(0.3),
+                              blurRadius: 20,
+                              spreadRadius: 2,
                             ),
-                          ),
+                          ],
                         ),
-                        GestureDetector(
-                          onTap: _updateProfilePicture,
-                          child: CircleAvatar(
-                            radius: 60,
-                            backgroundColor: Colors.transparent,
-                            backgroundImage: _profileImageUrl != null
-                                ? _profileImageUrl!.startsWith('http')
-                                    ? NetworkImage(_profileImageUrl!)
-                                    : FileImage(File(_profileImageUrl!)) as ImageProvider
-                                : null,
-                            child: _profileImageUrl == null
-                                ? const Icon(Icons.person, size: 60, color: Colors.white)
-                                : null,
-                          ),
+                      ),
+                      GestureDetector(
+                        onTap: _updateProfilePicture,
+                        child: CircleAvatar(
+                          radius: 52,
+                          backgroundColor: Colors.transparent,
+                          backgroundImage: _profileImageUrl != null
+                              ? _profileImageUrl!.startsWith('http')
+                                  ? NetworkImage(_profileImageUrl!)
+                                  : FileImage(File(_profileImageUrl!)) as ImageProvider
+                              : null,
+                          child: _profileImageUrl == null
+                              ? const Icon(Icons.person_rounded, size: 50, color: Colors.white)
+                              : null,
                         ),
-                      ],
+                      ),
+                      Positioned(
+                        bottom: 0, right: 0,
+                        child: Container(
+                          width: 36, height: 36,
+                          decoration: BoxDecoration(
+                            color: isDark ? AppTheme.darkCard : Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppTheme.primaryPink, width: 2),
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded, size: 18, color: AppTheme.primaryPink),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Profile form card
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkCard : Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isDark ? Colors.white.withOpacity(0.06) : AppTheme.neutralGrey200,
+                      ),
                     ),
-                    const SizedBox(height: 24),
-                    Card(
-                      elevation: 8,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: _buildProfileForm(),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Card(
-                      elevation: 8,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: _buildSafetyFeatures(),
+                    child: _buildProfileForm(isDark),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Safety features card
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkCard : Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isDark ? Colors.white.withOpacity(0.06) : AppTheme.neutralGrey200,
                       ),
                     ),
-                  ],
-                ),
+                    child: _buildSafetyFeatures(isDark),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Logout
+                  SizedBox(
+                    width: double.infinity, height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+                      },
+                      icon: Icon(Icons.logout_rounded,
+                        color: isDark ? Colors.red[300] : Colors.red[400]),
+                      label: Text('Sign Out',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.red[300] : Colors.red[400],
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: isDark ? Colors.red[300]! : Colors.red[400]!),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
-      ),
+            ),
     );
   }
 
-  Widget _buildProfileForm() {
+  Widget _buildProfileForm(bool isDark) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextFormField(
-          controller: _nameController,
-          decoration: InputDecoration(
-            labelText: 'Full Name',
-            prefixIcon: Icon(Icons.person),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+        Text('Personal Info',
+          style: GoogleFonts.inter(
+            fontSize: 16, fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : AppTheme.neutralGrey900,
           ),
-          style: TextStyle(color: Colors.black87),
-          validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _emailController,
-          decoration: InputDecoration(
-            labelText: 'Email',
-            prefixIcon: Icon(Icons.email),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          style: TextStyle(color: Colors.black87),
-          readOnly: true,
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _phoneController,
-          decoration: InputDecoration(
-            labelText: 'Phone',
-            prefixIcon: Icon(Icons.phone),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          style: TextStyle(color: Colors.black87),
-          keyboardType: TextInputType.phone,
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _emergencyContactController,
-          decoration: InputDecoration(
-            labelText: 'Emergency Contact',
-            hintText: '+1234567890',
-            prefixIcon: Icon(Icons.emergency),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          style: TextStyle(color: Colors.black87),
-          keyboardType: TextInputType.phone,
-          validator: (value) {
-            if (value?.isEmpty ?? true) return 'Required for emergency alerts';
-            if (!RegExp(r'^\+?[0-9]{10,15}$').hasMatch(value!)) {
-              return 'Enter a valid phone number';
-            }
-            return null;
-          },
-        ),
+        _buildFormField(_nameController, 'Full Name', Icons.person_rounded, isDark),
+        const SizedBox(height: 12),
+        _buildFormField(_emailController, 'Email', Icons.email_rounded, isDark, readOnly: true),
+        const SizedBox(height: 12),
+        _buildFormField(_phoneController, 'Phone', Icons.phone_rounded, isDark,
+            keyboardType: TextInputType.phone),
+        const SizedBox(height: 12),
+        _buildFormField(_emergencyContactController, 'Emergency Contact',
+            Icons.emergency_rounded, isDark, keyboardType: TextInputType.phone),
       ],
     );
   }
 
-  Widget _buildSafetyFeatures() {
+  Widget _buildFormField(TextEditingController controller, String label,
+      IconData icon, bool isDark, {bool readOnly = false, TextInputType? keyboardType}) {
+    return TextFormField(
+      controller: controller,
+      readOnly: readOnly,
+      keyboardType: keyboardType,
+      style: TextStyle(color: isDark ? Colors.white : AppTheme.neutralGrey900),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon,
+          color: isDark ? Colors.white38 : AppTheme.neutralGrey400, size: 20),
+        filled: true,
+        fillColor: isDark ? AppTheme.darkElevated.withOpacity(0.5) : AppTheme.neutralGrey100,
+      ),
+    );
+  }
+
+  Widget _buildSafetyFeatures(bool isDark) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextFormField(
-          controller: _codeWordController,
-          decoration: InputDecoration(
-            labelText: 'Emergency Code Word',
-            hintText: 'e.g. "help me"',
-            prefixIcon: Icon(Icons.security),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+        Text('Safety Features',
+          style: GoogleFonts.inter(
+            fontSize: 16, fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : AppTheme.neutralGrey900,
           ),
-          style: TextStyle(color: Colors.black87),
         ),
         const SizedBox(height: 16),
-        ElevatedButton.icon(
-          icon: Icon(_isListening ? Icons.mic_off : Icons.mic,
-          color: const Color.fromARGB(255, 255, 255, 255),
-          ),
-          label: Text(_isListening ? 'Stop Listening' : 'Start Code Word Listener',
-          style: TextStyle(
-      color: const Color.fromARGB(255, 255, 255, 255), // Added black text color
-    ),
-
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.pinkAccent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+        _buildFormField(_codeWordController, 'Emergency Code Word',
+            Icons.security_rounded, isDark),
+        const SizedBox(height: 16),
+        // Voice listener button
+        SizedBox(
+          width: double.infinity, height: 50,
+          child: InkWell(
+            onTap: _toggleListening,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              decoration: _isListening
+                  ? BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    )
+                  : AppTheme.gradientButton(radius: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(_isListening ? Icons.mic_off_rounded : Icons.mic_rounded,
+                    color: _isListening ? Colors.red : Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isListening ? 'Stop Listening' : 'Start Code Word Listener',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      color: _isListening ? Colors.red : Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            padding: EdgeInsets.symmetric(vertical: 12),
           ),
-          onPressed: _toggleListening,
         ),
         if (_isListening) ...[
           const SizedBox(height: 8),
           Text(
-            'Listening for code word...', 
-            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+            'Listening for code word...',
+            style: GoogleFonts.inter(
+              color: Colors.green, fontWeight: FontWeight.w600, fontSize: 13,
+            ),
           ),
-          const SizedBox(height: 8),
         ],
-        const SizedBox(height: 24),
-        SwitchListTile(
-          title: Text(
-            'Enable Notifications',
-            style: TextStyle(fontWeight: FontWeight.bold),
+        const SizedBox(height: 20),
+        // Notifications toggle
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkElevated.withOpacity(0.5) : AppTheme.neutralGrey100,
+            borderRadius: BorderRadius.circular(14),
           ),
-          subtitle: Text('Receive important safety alerts'),
-          value: _notificationsEnabled,
-          onChanged: (value) => setState(() => _notificationsEnabled = value),
-          activeColor: Colors.pink,
+          child: SwitchListTile(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            title: Text('Enable Notifications',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600, fontSize: 14,
+                color: isDark ? Colors.white : AppTheme.neutralGrey900,
+              ),
+            ),
+            subtitle: Text('Receive important safety alerts',
+              style: GoogleFonts.inter(fontSize: 12, color: AppTheme.neutralGrey500),
+            ),
+            value: _notificationsEnabled,
+            onChanged: (value) => setState(() => _notificationsEnabled = value),
+            activeColor: AppTheme.primaryPink,
+          ),
         ),
-        SwitchListTile(
-          title: Text(
-            'Shake to Alert',
-            style: TextStyle(fontWeight: FontWeight.bold),
+        const SizedBox(height: 12),
+        // Shake to alert toggle
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkElevated.withOpacity(0.5) : AppTheme.neutralGrey100,
+            borderRadius: BorderRadius.circular(14),
           ),
-          subtitle: Text(_isTestingMode 
-              ? 'Test Mode: Shake phone to test feature'
-              : 'Shake phone $_minShakeCount times to send emergency alert'),
-          value: _shakeToAlertEnabled,
-          onChanged: (value) async {
-            setState(() => _shakeToAlertEnabled = value);
-            if (value) {
-              await _startShakeDetection();
-            } else {
-              _accelerometerSubscription?.cancel();
-              setState(() => _isTestingMode = false);
-            }
-          },
-          activeColor: Colors.pink,
+          child: SwitchListTile(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            title: Text('Shake to Alert',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600, fontSize: 14,
+                color: isDark ? Colors.white : AppTheme.neutralGrey900,
+              ),
+            ),
+            subtitle: Text(
+              _isTestingMode
+                  ? 'Test Mode: Shake phone to test feature'
+                  : 'Shake phone $_minShakeCount times to send emergency alert',
+              style: GoogleFonts.inter(fontSize: 12, color: AppTheme.neutralGrey500),
+            ),
+            value: _shakeToAlertEnabled,
+            onChanged: (value) async {
+              setState(() => _shakeToAlertEnabled = value);
+              if (value) {
+                await _startShakeDetection();
+              } else {
+                _accelerometerSubscription?.cancel();
+                setState(() => _isTestingMode = false);
+              }
+            },
+            activeColor: AppTheme.primaryPink,
+          ),
         ),
         if (_isInCooldown) ...[
-          const SizedBox(height: 16),
-          Text(
-            'Alert cooldown: ${_cooldownPeriod.inSeconds - DateTime.now().difference(_lastSOSTime!).inSeconds}s remaining',
-            style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: Text(
+              'Alert cooldown: ${_cooldownPeriod.inSeconds - DateTime.now().difference(_lastSOSTime!).inSeconds}s remaining',
+              style: GoogleFonts.inter(color: Colors.orange, fontWeight: FontWeight.w600, fontSize: 13),
+            ),
           ),
         ],
         const SizedBox(height: 16),
         Text(
           'Emergency alerts will include your location and code word',
-          style: TextStyle(color: Colors.grey[700], fontStyle: FontStyle.italic),
+          style: GoogleFonts.inter(
+            color: isDark ? AppTheme.neutralGrey400 : AppTheme.neutralGrey500,
+            fontStyle: FontStyle.italic, fontSize: 12,
+          ),
           textAlign: TextAlign.center,
         ),
       ],

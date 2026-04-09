@@ -1,114 +1,113 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_direct_caller_plugin/flutter_direct_caller_plugin.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:title_proj/utils/app_theme.dart';
 
 class PoliceEmergency extends StatelessWidget {
   const PoliceEmergency({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final cardWidth = screenSize.width * 0.75; // Reduced width
-    final cardHeight = screenSize.height * 0.18; // Slightly taller
+    return _EmergencyCard(
+      title: 'Women Helpline',
+      subtitle: 'Call 181 for help',
+      number: '181',
+      icon: Icons.local_police_rounded,
+      gradientColors: const [AppTheme.primaryPink, AppTheme.accentCoral],
+      onTap: () => FlutterDirectCallerPlugin.callNumber("181"),
+    );
+  }
+}
 
+class _EmergencyCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String number;
+  final IconData icon;
+  final List<Color> gradientColors;
+  final VoidCallback onTap;
+
+  const _EmergencyCard({
+    required this.title,
+    required this.subtitle,
+    required this.number,
+    required this.icon,
+    required this.gradientColors,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: GestureDetector(
-        onTap: () => FlutterDirectCallerPlugin.callNumber("181"),
-        child: Card(
-          elevation: 5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            width: cardWidth,
-            height: cardHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.fromARGB(255, 228, 75, 184), // RGB(216, 68, 173)
-                  Color(0xFFEC407A), // RGB(248, 7, 89)
-                ],
-              ),
+        onTap: onTap,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.65,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: gradientColors,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Stack(
-                children: [
-                  // Icon and Text - Now in column layout
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: cardHeight * 0.3,
-                          height: cardHeight * 0.3,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Image.asset(
-                              'assets/alert.png',
-                              width: cardHeight * 0.3,
-                              height: cardHeight * 0.3,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Women Helpline',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: cardHeight * 0.16, // Adjusted size
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Call 181 for Women\'s Helpline',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: cardHeight * 0.10, // Adjusted size
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Number Badge
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: cardWidth * 0.18,
-                      height: cardHeight * 0.25,
+            boxShadow: [
+              BoxShadow(
+                color: gradientColors.first.withOpacity(0.3),
+                blurRadius: 16, offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Center(
-                        child: Text(
-                          '181',
-                          style: TextStyle(
-                            color: Color(0xFFF80759),
-                            fontWeight: FontWeight.bold,
-                            fontSize: cardHeight * 0.2, // Adjusted size
-                          ),
+                      child: Icon(icon, color: Colors.white, size: 22),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(number,
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          color: gradientColors.first,
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                      style: GoogleFonts.inter(
+                        color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withOpacity(0.8), fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

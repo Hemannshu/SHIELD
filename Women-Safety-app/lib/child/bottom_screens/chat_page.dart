@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as emoji_flutter;
 import 'package:path_provider/path_provider.dart';
+import 'package:title_proj/utils/app_theme.dart';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
@@ -219,27 +221,28 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: _selectedContact != null
             ? Text(
                 _selectedContact!.displayName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w700, fontSize: 18,
                   color: Colors.white,
                 ),
               )
-            : const Text(
-                'Chats',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
+            : Text('Chats',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w700, fontSize: 18,
                   color: Colors.white,
                 ),
               ),
         centerTitle: true,
         leading: _selectedContact != null
             ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
                 onPressed: _handleBackButton,
               )
             : null,
@@ -247,30 +250,19 @@ class _ChatPageState extends State<ChatPage> {
           if (_selectedContact == null)
             IconButton(
               icon: Icon(
-                _searching ? Icons.close : Icons.search,
+                _searching ? Icons.close_rounded : Icons.search_rounded,
                 color: Colors.white,
               ),
               onPressed: _toggleSearch,
             ),
         ],
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFEC407A), Color(0xFFF06292)],
-            ),
-          ),
+          decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
         ),
+        elevation: 0,
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFF5F7), Colors.white],
-          ),
-        ),
+        color: isDark ? AppTheme.darkBackground : AppTheme.neutralGrey50,
         child: Column(
           children: [
             if (_searching)
@@ -278,26 +270,27 @@ class _ChatPageState extends State<ChatPage> {
                 padding: const EdgeInsets.all(12.0),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: const [
+                    color: isDark ? AppTheme.darkElevated : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: isDark ? [] : [
                       BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: TextField(
                     controller: _searchController,
-                    decoration: const InputDecoration(
+                    style: GoogleFonts.inter(
+                      color: isDark ? Colors.white : AppTheme.neutralGrey900,
+                    ),
+                    decoration: InputDecoration(
                       hintText: 'Search contacts...',
-                      prefixIcon: Icon(Icons.search, color: Color(0xFFEC407A)),
+                      hintStyle: GoogleFonts.inter(color: AppTheme.neutralGrey400),
+                      prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryPink),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        vertical: 16,
-                        horizontal: 20,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                     ),
                   ),
                 ),
@@ -308,14 +301,14 @@ class _ChatPageState extends State<ChatPage> {
             if (_showEmojiPicker)
               SizedBox(
                 height: 250,
-                child: EmojiPicker(
+                child: emoji_flutter.EmojiPicker(
                   onEmojiSelected: (category, emoji) {
                     if (emoji != null) {
                       _messageController.text += emoji.emoji;
                     }
                   },
-                  config: Config(
-                    emojiViewConfig: EmojiViewConfig(
+                  config: emoji_flutter.Config(
+                    emojiViewConfig: emoji_flutter.EmojiViewConfig(
                       columns: 7,
                       emojiSizeMax: 32.0,
                     ),
@@ -329,68 +322,72 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildContactsList() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_loadingContacts) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC407A)),
+          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPink),
         ),
       );
     }
 
     return Expanded(
       child: ListView.builder(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: _filteredContacts.length,
         itemBuilder: (context, index) {
           final contact = _filteredContacts[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            elevation: 1,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ListTile(
-              leading: Container(
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFEC407A), Color(0xFFF06292)],
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppTheme.darkCard : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: isDark ? [] : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10, offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                leading: Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    gradient: AppTheme.primaryGradient,
+                  ),
+                  child: contact.thumbnail != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.memory(contact.thumbnail!, fit: BoxFit.cover))
+                      : Center(
+                          child: Text(
+                            contact.displayName.isNotEmpty
+                                ? contact.displayName[0].toUpperCase() : '?',
+                            style: GoogleFonts.inter(
+                              fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                          ),
+                        ),
+                ),
+                title: Text(contact.displayName,
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600, fontSize: 15,
+                    color: isDark ? Colors.white : AppTheme.neutralGrey900,
                   ),
                 ),
-                child: CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.transparent,
-                  backgroundImage: contact.thumbnail != null
-                      ? MemoryImage(contact.thumbnail!)
-                      : null,
-                  child: contact.thumbnail == null
-                      ? Text(
-                          contact.displayName.isNotEmpty 
-                              ? contact.displayName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                          ),
-                        )
-                      : null,
+                subtitle: Text(
+                  contact.phones.isNotEmpty ? contact.phones.first.number : 'No phone number',
+                  style: GoogleFonts.inter(fontSize: 13, color: AppTheme.neutralGrey500),
                 ),
-              ),
-              title: Text(
-                contact.displayName,
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-              subtitle: Text(
-                contact.phones.isNotEmpty 
-                    ? contact.phones.first.number 
-                    : 'No phone number',
-              ),
-              onTap: () {
-                setState(() {
+                trailing: Icon(Icons.chevron_right_rounded,
+                  color: isDark ? Colors.white24 : AppTheme.neutralGrey300),
+                onTap: () => setState(() {
                   _selectedContact = contact;
                   _searching = false;
-                });
-              },
+                }),
+              ),
             ),
           );
         },
@@ -399,15 +396,32 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildChatArea() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = _auth.currentUser;
-    if (user == null) return const SizedBox();
+    if (user == null) {
+      return Expanded(
+        child: Center(
+          child: Text('Please sign in to chat',
+            style: GoogleFonts.inter(color: AppTheme.neutralGrey500)),
+        ),
+      );
+    }
+
+    if (_selectedContact!.phones.isEmpty) {
+      return Expanded(
+        child: Center(
+          child: Text('No valid phone number for this contact',
+            style: GoogleFonts.inter(color: AppTheme.neutralGrey500)),
+        ),
+      );
+    }
 
     final contactPhone = _selectedContact!.phones.first.number;
     if (contactPhone.isEmpty) {
-      return Center(
-        child: Text(
-          'No valid phone number for this contact',
-          style: TextStyle(color: Colors.grey.shade600),
+      return Expanded(
+        child: Center(
+          child: Text('No valid phone number for this contact',
+            style: GoogleFonts.inter(color: AppTheme.neutralGrey500)),
         ),
       );
     }
@@ -417,12 +431,7 @@ class _ChatPageState extends State<ChatPage> {
 
     return Expanded(
       child: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/chat_bg.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
+        color: isDark ? AppTheme.darkBackground : AppTheme.neutralGrey50,
         child: StreamBuilder<QuerySnapshot>(
           stream: _firestore
               .collection('chats')
@@ -431,18 +440,68 @@ class _ChatPageState extends State<ChatPage> {
               .orderBy('timestamp', descending: false)
               .snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC407A)),
-                )
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.chat_bubble_outline_rounded,
+                        size: 48, color: AppTheme.neutralGrey300),
+                      const SizedBox(height: 16),
+                      Text('Start a conversation!',
+                        style: GoogleFonts.inter(
+                          fontSize: 16, fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : AppTheme.neutralGrey600,
+                        )),
+                      const SizedBox(height: 4),
+                      Text('Send a message to begin chatting',
+                        style: GoogleFonts.inter(
+                          fontSize: 13, color: AppTheme.neutralGrey400)),
+                    ],
+                  ),
+                ),
               );
             }
 
-            final messages = snapshot.data!.docs;
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPink),
+                ),
+              );
+            }
+
+            final messages = snapshot.data?.docs ?? [];
+
+            if (messages.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.chat_bubble_outline_rounded,
+                        size: 48, color: AppTheme.neutralGrey300),
+                      const SizedBox(height: 16),
+                      Text('No messages yet',
+                        style: GoogleFonts.inter(
+                          fontSize: 16, fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : AppTheme.neutralGrey600,
+                        )),
+                      const SizedBox(height: 4),
+                      Text('Say hello!',
+                        style: GoogleFonts.inter(
+                          fontSize: 13, color: AppTheme.neutralGrey400)),
+                    ],
+                  ),
+                ),
+              );
+            }
 
             return ListView.builder(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index].data() as Map<String, dynamic>;
@@ -454,28 +513,23 @@ class _ChatPageState extends State<ChatPage> {
                     alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.8,
+                        maxWidth: MediaQuery.of(context).size.width * 0.75,
                       ),
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          gradient: isMe 
-                              ? const LinearGradient(
-                                  colors: [Color(0xFFEC407A), Color(0xFFF06292)],
-                                )
-                              : null,
-                          color: isMe ? null : Colors.white,
+                          gradient: isMe ? AppTheme.primaryGradient : null,
+                          color: isMe ? null : (isDark ? AppTheme.darkElevated : Colors.white),
                           borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(12),
-                            topRight: const Radius.circular(12),
-                            bottomLeft: Radius.circular(isMe ? 12 : 0),
-                            bottomRight: Radius.circular(isMe ? 0 : 12),
+                            topLeft: const Radius.circular(18),
+                            topRight: const Radius.circular(18),
+                            bottomLeft: Radius.circular(isMe ? 18 : 4),
+                            bottomRight: Radius.circular(isMe ? 4 : 18),
                           ),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 8, offset: const Offset(0, 2),
                             ),
                           ],
                         ),
@@ -493,104 +547,97 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildMessageContent(Map<String, dynamic> message, bool isMe) {
-    final textColor = isMe ? Colors.white : Colors.black87;
+    final textColor = isMe ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.neutralGrey900);
     
     switch (message['type']) {
       case 'image':
         final imagePath = message['imagePath'] as String?;
         if (imagePath == null) {
-          return Text('Image not available', style: TextStyle(color: textColor));
+          return Text('Image not available', style: GoogleFonts.inter(color: textColor));
         }
         return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           child: Image.file(File(imagePath), width: 200, height: 200),
         );
       case 'location':
         final lat = message['latitude'] as double?;
         final lng = message['longitude'] as double?;
         if (lat == null || lng == null) {
-          return Text('Location not available', style: TextStyle(color: textColor));
+          return Text('Location not available', style: GoogleFonts.inter(color: textColor));
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.location_on, size: 40, color: isMe ? Colors.white : const Color(0xFFEC407A)),
-            const SizedBox(height: 8),
-            Text(
-              'Shared Location',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
-            Text(
-              '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
-              style: TextStyle(color: textColor),
-            ),
+            Icon(Icons.location_on_rounded, size: 32,
+              color: isMe ? Colors.white : AppTheme.primaryPink),
+            const SizedBox(height: 6),
+            Text('Shared Location',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: textColor)),
+            Text('${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
+              style: GoogleFonts.inter(fontSize: 12, color: textColor)),
           ],
         );
       default:
         return Text(
           message['text']?.toString() ?? '',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 16,
-          ),
+          style: GoogleFonts.inter(color: textColor, fontSize: 15),
         );
     }
   }
 
   Widget _buildMessageInput() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: const [
+        color: isDark ? AppTheme.darkElevated : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 2),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.emoji_emotions, color: Color(0xFFEC407A)),
-            onPressed: () {
-              setState(() {
-                _showEmojiPicker = !_showEmojiPicker;
-              });
-            },
+            icon: Icon(Icons.emoji_emotions_rounded,
+              color: _showEmojiPicker ? AppTheme.primaryPink : AppTheme.neutralGrey400),
+            onPressed: () => setState(() => _showEmojiPicker = !_showEmojiPicker),
           ),
           Expanded(
             child: TextField(
               controller: _messageController,
-              decoration: const InputDecoration(
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: isDark ? Colors.white : AppTheme.neutralGrey900,
+              ),
+              decoration: InputDecoration(
                 hintText: 'Type a message...',
+                hintStyle: GoogleFonts.inter(color: AppTheme.neutralGrey400, fontSize: 14),
                 border: InputBorder.none,
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.image, color: Color(0xFFEC407A)),
+            icon: const Icon(Icons.image_rounded, color: AppTheme.neutralGrey400, size: 22),
             onPressed: _sendImage,
           ),
           IconButton(
-            icon: const Icon(Icons.location_on, color: Color(0xFFEC407A)),
+            icon: const Icon(Icons.location_on_rounded, color: AppTheme.neutralGrey400, size: 22),
             onPressed: _sendLocation,
           ),
           Container(
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [Color(0xFFEC407A), Color(0xFFF06292)],
-              ),
+            margin: const EdgeInsets.only(right: 4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: AppTheme.primaryGradient,
             ),
             child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
+              icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
               onPressed: _sendMessage,
             ),
           ),

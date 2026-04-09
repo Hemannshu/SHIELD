@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:title_proj/child/bottom_screens/profile_page.dart';
 import 'package:title_proj/child/bottom_screens/theme_provider.dart';
+import 'package:title_proj/utils/app_theme.dart';
 import 'package:title_proj/widgets/home_widgets/SOSButton/emergency_service.dart';
 import 'package:title_proj/widgets/home_widgets/emergency.dart';
 import 'package:title_proj/widgets/home_widgets/safehome/SafeHome.dart';
@@ -34,96 +38,134 @@ class _HomeScreenState extends State<HomeScreen> {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: Column(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _buildAppBar(context, isDarkMode, themeProvider, colors)
+                .animate()
+                .fadeIn(duration: 500.ms),
+            Expanded(
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  // Status banner
+                  SliverToBoxAdapter(
+                    child: _buildStatusBanner(isDarkMode)
+                        .animate()
+                        .fadeIn(delay: 200.ms, duration: 500.ms)
+                        .slideY(begin: 0.1),
+                  ),
+
+                  // SOS Button Section
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: _buildSOSButton(context, isDarkMode)),
+                    ).animate().fadeIn(delay: 300.ms, duration: 600.ms).scale(
+                      begin: const Offset(0.9, 0.9), curve: Curves.easeOutBack),
+                  ),
+
+                  // Emergency Contacts Section
+                  SliverToBoxAdapter(
+                    child: _buildSectionHeader(
+                      context,
+                      title: "Quick Emergency",
+                      icon: Icons.emergency_rounded,
+                      isDark: isDarkMode,
+                    ).animate().fadeIn(delay: 400.ms, duration: 500.ms),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Emergency(
+                      onSosPressed: () => _handleEmergency(context),
+                    ).animate().fadeIn(delay: 500.ms, duration: 500.ms),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+                  // Explore Safety Features Section
+                  SliverToBoxAdapter(
+                    child: _buildSectionHeader(
+                      context,
+                      title: "Nearby Safety",
+                      icon: Icons.location_on_rounded,
+                      isDark: isDarkMode,
+                    ).animate().fadeIn(delay: 600.ms, duration: 500.ms),
+                  ),
+                  SliverToBoxAdapter(
+                    child: LiveSafe()
+                        .animate().fadeIn(delay: 700.ms, duration: 500.ms),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+                  // Your Safe Spaces Section
+                  SliverToBoxAdapter(
+                    child: _buildSectionHeader(
+                      context,
+                      title: "Safe Spaces",
+                      icon: Icons.home_rounded,
+                      isDark: isDarkMode,
+                    ).animate().fadeIn(delay: 800.ms, duration: 500.ms),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SafeHome()
+                        .animate().fadeIn(delay: 900.ms, duration: 500.ms),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBanner(bool isDark) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1B3A26), const Color(0xFF1A2E1A)]
+              : [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.green.withOpacity(0.2) : Colors.green.withOpacity(0.1),
+        ),
+      ),
+      child: Row(
         children: [
-          _buildAppBar(context, isDarkMode, themeProvider, colors),
-          Expanded(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                // Emergency Contacts Section
-                SliverToBoxAdapter(
-                  child: _buildSectionHeader(
-                    context,
-                    title: "Emergency Contacts",
-                    icon: Icons.emergency_outlined,
-                  ),
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.green[400],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.4),
+                  blurRadius: 6,
+                  spreadRadius: 1,
                 ),
-                SliverToBoxAdapter(
-                  child: Emergency(
-                    onSosPressed: () => _handleEmergency(context),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-                // SOS Button Section
-                SliverToBoxAdapter(
-                  child: Column(
-                    children: [
-                      GestureDetector(
-                        onTapDown: (_) => setState(() => _isSosPressed = true),
-                        onTapUp: (_) => setState(() => _isSosPressed = false),
-                        onTapCancel: () => setState(() => _isSosPressed = false),
-                        onTap: () => _handleEmergency(context),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: _isSosPressed ? 120 : 130,
-                          height: _isSosPressed ? 140 : 150,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFEC407A),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color.fromARGB(255, 240, 56, 117),
-                                blurRadius: 20,
-                                spreadRadius: _isSosPressed ? 5 : 10,
-                              )
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'SOS',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-
-                // Explore Safety Features Section
-                SliverToBoxAdapter(
-                  child: _buildSectionHeader(
-                    context,
-                    title: "Explore Safety Features",
-                    icon: Icons.explore_outlined,
-                  ),
-                ),
-                SliverToBoxAdapter(child: LiveSafe()),
-                const SliverToBoxAdapter(child: SizedBox(height: 8)),
-
-                // Your Safe Spaces Section
-                SliverToBoxAdapter(
-                  child: _buildSectionHeader(
-                    context,
-                    title: "Your Safe Spaces",
-                    icon: Icons.home_work_outlined,
-                  ),
-                ),
-                SliverToBoxAdapter(child: SafeHome()),
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'Protection Active',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.green[300] : Colors.green[800],
+            ),
+          ),
+          const Spacer(),
+          Text(
+            'All systems operational',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: isDark ? Colors.green[400]!.withOpacity(0.7) : Colors.green[600],
             ),
           ),
         ],
@@ -131,9 +173,64 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildSOSButton(BuildContext context, bool isDark) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isSosPressed = true),
+      onTapUp: (_) => setState(() => _isSosPressed = false),
+      onTapCancel: () => setState(() => _isSosPressed = false),
+      onTap: () => _handleEmergency(context),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        width: _isSosPressed ? 130 : 140,
+        height: _isSosPressed ? 130 : 140,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: AppTheme.sosGradient,
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF1744).withOpacity(_isSosPressed ? 0.5 : 0.35),
+              blurRadius: _isSosPressed ? 30 : 24,
+              spreadRadius: _isSosPressed ? 4 : 8,
+            ),
+            BoxShadow(
+              color: const Color(0xFFFF1744).withOpacity(0.15),
+              blurRadius: 50,
+              spreadRadius: 15,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'SOS',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 34,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 3,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'TAP FOR HELP',
+              style: GoogleFonts.inter(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAppBar(BuildContext context, bool isDarkMode, ThemeProvider themeProvider, ColorScheme colors) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -142,89 +239,65 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [colors.primary, colors.secondary],
-                  ),
-                  shape: BoxShape.circle,
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryPink.withOpacity(0.25),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: const Icon(
-                  Icons.security,
-                  color: Colors.white,
-                  size: 24,
-                ),
+                child: const Icon(Icons.shield_rounded, color: Colors.white, size: 22),
               ),
               const SizedBox(width: 12),
               Text(
                 'SHEild',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                style: GoogleFonts.inter(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                   foreground: Paint()
-                    ..shader = LinearGradient(
-                      colors: [colors.primary, colors.secondary],
-                    ).createShader(const Rect.fromLTWH(0, 0, 200, 70)),
+                    ..shader = AppTheme.primaryGradient
+                        .createShader(const Rect.fromLTWH(0, 0, 200, 70)),
                 ),
               ),
             ],
           ),
           Row(
             children: [
-              // Bluetooth Button
-              IconButton(
-                icon: Icon(
-                  _connectedDevice != null 
-                    ? Icons.bluetooth_connected 
-                    : Icons.bluetooth,
-                  color: _connectedDevice != null 
-                    ? Colors.blue 
-                    : colors.onSurface,
-                ),
-                onPressed: () => _showBluetoothDialog(context),
+              _buildIconBtn(
+                _connectedDevice != null ? Icons.bluetooth_connected_rounded : Icons.bluetooth_rounded,
+                _connectedDevice != null ? Colors.blue : (isDarkMode ? Colors.white54 : AppTheme.neutralGrey400),
+                isDarkMode,
+                () => _showBluetoothDialog(context),
               ),
               const SizedBox(width: 8),
-              
-              // Dark Mode Button
-              IconButton(
-                icon: Icon(
-                  isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                  color: colors.onSurface,
-                ),
-                onPressed: () {
-                  themeProvider.toggleTheme(!isDarkMode);
-                },
+              _buildIconBtn(
+                isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                isDarkMode ? Colors.amber : AppTheme.neutralGrey400,
+                isDarkMode,
+                () => themeProvider.toggleTheme(!isDarkMode),
               ),
               const SizedBox(width: 8),
-              
-              // Profile Button
               GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfilePage()),
-                ),
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const ProfilePage())),
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: 40, height: 40,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        colors.primary.withOpacity(0.8),
-                        colors.secondary.withOpacity(0.8),
-                      ],
-                    ),
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: colors.primary.withOpacity(0.2),
+                        color: AppTheme.primaryPink.withOpacity(0.2),
                         blurRadius: 8,
-                        spreadRadius: 2,
-                      )
+                        offset: const Offset(0, 2),
+                      ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.person_outline,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  child: const Icon(Icons.person_rounded, color: Colors.white, size: 20),
                 ),
               ),
             ],
@@ -234,24 +307,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, {required String title, required IconData icon}) {
-    final colors = Theme.of(context).colorScheme;
+  Widget _buildIconBtn(IconData icon, Color iconColor, bool isDark, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40, height: 40,
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.06) : AppTheme.neutralGrey100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.08) : AppTheme.neutralGrey200,
+          ),
+        ),
+        child: Icon(icon, color: iconColor, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, {required String title, required IconData icon, required bool isDark}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: colors.secondary,
-            size: 28,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryPink.withOpacity(isDark ? 0.15 : 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: AppTheme.primaryPink, size: 20),
           ),
           const SizedBox(width: 12),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: colors.onSurface,
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : AppTheme.neutralGrey900,
+              letterSpacing: -0.3,
             ),
           ),
         ],
