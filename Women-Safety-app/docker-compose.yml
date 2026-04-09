@@ -1,0 +1,33 @@
+# SHEILD - Docker Compose for backend services
+# Reference: Research Paper Section IV-D
+#
+# Usage:
+#   docker-compose up -d          # Start all services
+#   docker-compose down            # Stop all services
+#   docker-compose logs -f api     # View API logs
+
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./assets
+      dockerfile: Dockerfile
+    container_name: sheild-api
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/predict', data=b'{\"text\":\"ping\"}')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
